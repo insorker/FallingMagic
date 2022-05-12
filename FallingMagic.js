@@ -1,65 +1,71 @@
 // canvas and context
-var canvas = document.getElementById("canvas");
-var ctx = canvas.getContext("2d");
+var cvs = document.getElementById("canvas");
+var ctx = cvs.getContext("2d");
 
-// take elements ad a 2d array
-var elements = new Array(canvas.width).fill(0).map(() => new Array(canvas.height).fill(0));
-const ElementSize = 3;
-const elewith = Math.ceil(canvas.width / ElementSize);
-const eleheight = Math.ceil(canvas.height / ElementSize);
+// take elements as a 2d array
+var eles = new Array(cvs.width).fill(0).map(
+    () => new Array(cvs.height).fill(0));
+const eleSize = 6;
+const eleWidth = Math.ceil(cvs.width / eleSize);
+const eleHeight = Math.ceil(cvs.height / eleSize);
 
 class Element {
     constructor(color, movable, velocity, density) {
-        // unit size 
-        this.size = 5;
-        // element type
-        // this.type = type;
         this.color = color;
         this.movable = movable;
         this.velocity = velocity;
         this.density = density;
     }
 
+    // choose a random color to draw
     static draw(x, y) {
-        let elecolor = ElementInstance[elements[x][y]].color;
-        let rancolor = Math.floor(Math.random() * elecolor[0][1]) + elecolor[0][0];
-        let color = elecolor[elecolor.length - 1][0];
+        let eleColor = ElementInstance[eles[x][y]].color;
+        let random = Math.floor(Math.random() * eleColor[eleColor.length - 1][1]);
 
-        for (let i = 1; i < elecolor.length; i++) {
-            if (rancolor < elecolor[i][1]) {
-                color = elecolor[i][0];
+        for (let i = 0; i < eleColor.length; i++) {
+            if (random < eleColor[i][1]) {
+                ctx.fillStyle = eleColor[i][0];
+                ctx.fillRect(x * eleSize, y * eleSize, eleSize, eleSize);
                 break;
             }
         }
-
-        ctx.fillStyle = color;
-        ctx.fillRect(x * ElementSize, y * ElementSize, ElementSize, ElementSize);
     }
 
+    // exchange two pixel's position
     static exchange(x1, y1, x2, y2) {
+        // if (eles[x1][y1] == eles[x2][y2]) {
+        //     // same element
+        //     return false;
+        // }
         if (x1 != x2 || y1 != y2) {
-            let tmp = elements[x1][y1];
-            elements[x1][y1] = elements[x2][y2];
-            Element.draw(x1, y1);
-            elements[x2][y2] = tmp;
-            Element.draw(x2, y2);
+            // different element && different position
+            [eles[x1][y1], eles[x2][y2]] = [eles[x2][y2], eles[x1][y1]];
+            return true;
         }
-        else {
-            Element.draw(x1, y1);
-        }
+
+        // not reachable
+        return false;
     }
 
-    isMovable(x, y, nex, ney) {
+    static exchangeAndDraw(x1, y1, x2, y2) {
+        Element.exchange(x1, y1, x2, y2);
+        // if exchange not happened, draw still to change color
+        Element.draw(x1, y1);
+        Element.draw(x2, y2);
+    }
+
+    static isMovable(x, y, nex, ney) {
         // check boundary
-        if (nex < 0 || nex >= elewith ||
-            ney < 0 || ney >= eleheight) { return false; }
+        if (nex < 0 || nex >= eleWidth ||
+            ney < 0 || ney >= eleHeight) { return false; }
+        
         // check empty
-        if (elements[nex][ney] != 0) {
-            // check whether next element can move
-            if (ElementInstance[elements[nex][ney]].movable == false) { return false; }
+        if (eles[nex][ney] != 0) {
+            // whether next element can move
+            if (ElementInstance[eles[nex][ney]].movable == false) { return false; }
             // compare density
-            if (ElementInstance[elements[x][y]].density >
-                ElementInstance[elements[nex][ney]].density) { return true; }
+            if (ElementInstance[eles[x][y]].density >
+                ElementInstance[eles[nex][ney]].density) { return true; }
 
             return false;
         }
@@ -70,7 +76,7 @@ class Element {
 
 class Empty extends Element {
     constructor() {
-        super([[0, 1], ['#ffffff', 1], ], false, 0, 0);
+        super([['#ffffff', 1]], false, 0, 0);
     }
 }
 
@@ -83,9 +89,9 @@ class Liquid extends Element {
         let v = this.velocity;
         let oldx = x, oldy = y;
 
-        if (this.isMovable(oldx, oldy, x, y + 1)) {
+        if (Element.isMovable(oldx, oldy, x, y + 1)) {
             // go down
-            while (v && this.isMovable(oldx, oldy, x, y + 1)) {
+            while (v && Element.isMovable(oldx, oldy, x, y + 1)) {
                 y += 1;
                 v -= 1;
             }
@@ -95,13 +101,13 @@ class Liquid extends Element {
             let dir = Math.floor(Math.random() * 2);
             if (dir == 0) { dir = -1; }
 
-            while (v && this.isMovable(oldx, oldy, x + dir, y)) {
+            while (v && Element.isMovable(oldx, oldy, x + dir, y)) {
                 x += dir;
                 v -= 1;
             }
         }
 
-        Element.exchange(x, y, oldx, oldy);
+        Element.exchangeAndDraw(x, y, oldx, oldy);
     }
 }
 
@@ -119,9 +125,9 @@ class Solid extends Element {
         let v = this.velocity;
         let oldx = x, oldy = y;
 
-        if (this.isMovable(oldx, oldy, x, y + 1)) {
+        if (Element.isMovable(oldx, oldy, x, y + 1)) {
             // go down
-            while (v && this.isMovable(oldx, oldy, x, y + 1)) {
+            while (v && Element.isMovable(oldx, oldy, x, y + 1)) {
                 y += 1;
                 v -= 1;
             }
@@ -131,14 +137,14 @@ class Solid extends Element {
             let dir = Math.floor(Math.random() * 2);
             if (dir == 0) { dir = -1; }
 
-            while (v && this.isMovable(oldx, oldy, x + dir, y + 1)) {
+            while (v && Element.isMovable(oldx, oldy, x + dir, y + 1)) {
                 x += dir;
                 y += 1;
                 v -= 1;
             }
         }
 
-        Element.exchange(x, y, oldx, oldy);
+        Element.exchangeAndDraw(x, y, oldx, oldy);
     }
 }
 
@@ -152,9 +158,9 @@ class Gas extends Element {
         let oldx = x, oldy = y;
         let dir = Math.floor(Math.random() * 3) - 1;
 
-        if (this.isMovable(oldx, oldy, x + dir, y - 1)) {
+        if (Element.isMovable(oldx, oldy, x + dir, y - 1)) {
             // go up left or up right
-            while (v && this.isMovable(oldx, oldy, x + dir, y - 1)) {
+            while (v && Element.isMovable(oldx, oldy, x + dir, y - 1)) {
                 x += dir;
                 y -= 1;
                 v -= 1;
@@ -162,43 +168,43 @@ class Gas extends Element {
         }
         else {
             // just go horizontally
-            while (v && this.isMovable(oldx, oldy, x + dir, y)) {
+            while (v && Element.isMovable(oldx, oldy, x + dir, y)) {
                 x += dir;
                 v -= 1;
             }
         }
 
-        Element.exchange(x, y, oldx, oldy);
+        Element.exchangeAndDraw(x, y, oldx, oldy);
     }
 }
 
 class Water extends Liquid {
     constructor() {
-        super([[0, 1], ['#2486b9', 1], ], 4, 1);
+        super([['#2486b9', 1]], 4, 1);
     }
 }
 
 class Sand extends Solid {
     constructor() {
-        super([[0, 1], ['#f9c116', 1], ], true, 1, 1.2);
+        super([['#f9c116', 1]], true, 1, 1.2);
     }
 }
 
 class Stone extends Solid {
     constructor() {
-        super([[0, 1], ['#0f1423', 1], ], false, 1, 10);
+        super([['#0f1423', 1]], false, 1, 10);
     }
 }
 
 class Steam extends Gas {
     constructor() {
-        super([[0, 20], ['#8abcd1', 19], ['#eeeeee', 20]], 8, 0.5);
+        super([['#8abcd1', 1], ['#eeeeee', 2]], 8, 0.5);
     }
 }
 
 class Snow extends Solid {
     constructor() {
-        super([[0, 1], ['#baccd9', 1], ], true, 3, 0.8);
+        super([['#baccd9', 1]], true, 3, 0.8);
     }
 
     move(x, y) {
@@ -206,9 +212,9 @@ class Snow extends Solid {
         let oldx = x, oldy = y;
         let dir = Math.floor(Math.random() * 3) - 1;
 
-        if (this.isMovable(oldx, oldy, x + dir, y + 1)) {
+        if (Element.isMovable(oldx, oldy, x + dir, y + 1)) {
             // go up left or up right
-            while (v && this.isMovable(oldx, oldy, x + dir, y + 1)) {
+            while (v && Element.isMovable(oldx, oldy, x + dir, y + 1)) {
                 x += dir;
                 y += 1;
                 v -= 1;
@@ -216,13 +222,13 @@ class Snow extends Solid {
         }
         else {
             // just go horizontally
-            while (v && this.isMovable(oldx, oldy, x + dir, y)) {
+            while (v && Element.isMovable(oldx, oldy, x + dir, y)) {
                 x += dir;
                 v -= 1;
             }
         }
 
-        Element.exchange(x, y, oldx, oldy);
+        Element.exchangeAndDraw(x, y, oldx, oldy);
     }
 }
 
@@ -239,24 +245,24 @@ function run() {
     let frame = 1;
 
     for (let i = 10; i <= 110; i++) {
-        elements[i][50] = 3;
+        eles[i][50] = 3;
     }
 
     var update = () => {
-        if (frame % 10 == 0) {
-            elements[10][10] = 1;
-            elements[100][10] = 2;
-            elements[50][10] = 4;
-            elements[60][10] = 5;
+        if (frame % 1 == 0) {
+            eles[10][10] = 1;
+            eles[100][10] = 2;
+            eles[50][10] = 4;
+            eles[60][10] = 5;
         }
         else if (frame == 60) {
             frame = 0;
         }
 
-        for (let j = eleheight; j >= 0; j--) {
-            for (let i = elewith; i >= 0; i--) {
-                if (elements[i][j] != 0) {
-                    ElementInstance[elements[i][j]].move(i, j);
+        for (let j = eleHeight; j >= 0; j--) {
+            for (let i = eleWidth; i >= 0; i--) {
+                if (eles[i][j] != 0) {
+                    ElementInstance[eles[i][j]].move(i, j);
                 }
             }
         }
