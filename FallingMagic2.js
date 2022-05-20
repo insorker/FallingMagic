@@ -3,11 +3,11 @@ var cvs = document.getElementById("canvas");
 var ctx = cvs.getContext("2d");
 
 // take elements as a 2d array
-var eles = new Array(cvs.width).fill(0).map(
-    () => new Array(cvs.height).fill(0));
 const eleSize = 6;
 const eleWidth = Math.ceil(cvs.width / eleSize);
 const eleHeight = Math.ceil(cvs.height / eleSize);
+var eles = new Array(eleWidth).fill(0).map(
+    () => new Array(eleHeight).fill(0));
 
 class Element {
     constructor(x, y, color, movable, velocity, density) {
@@ -235,15 +235,6 @@ class Snow extends Solid {
     }
 }
 
-const ElementInstance = [
-    /* 0 */ new Empty(),
-    /* 1 */ new Water(),
-    /* 2 */ new Sand(),
-    /* 3 */ new Stone(),
-    /* 4 */ new Steam(),
-    /* 5 */ new Snow(),
-]
-
 function run() {
     // === initialize
     let frame = 1;
@@ -269,8 +260,8 @@ function run() {
             frame = 0;
         }
 
-        for (let j = eleHeight; j >= 0; j--) {
-            for (let i = eleWidth; i >= 0; i--) {
+        for (let j = eleHeight - 1; j >= 0; j--) {
+            for (let i = eleWidth - 1; i >= 0; i--) {
                 if (!(eles[i][j] instanceof Empty)) {
                     // === do something
                     eles[i][j].move(i, j);
