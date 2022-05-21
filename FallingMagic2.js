@@ -80,8 +80,8 @@ class Empty extends Element {
 }
 
 class Liquid extends Element {
-    constructor(x, y, color, velociry, density) {
-        super(x, y, color, true, velociry, density);
+    constructor(x, y, color, velocity, density) {
+        super(x, y, color, true, velocity, density);
     }
 
     move() {
@@ -107,13 +107,14 @@ class Liquid extends Element {
             }
         }
 
-        Element.exchangeAndDraw(x, y, oldx, oldy);
+        Element.exchangeAndDraw(oldx, oldy, x, y);
+        // Element.exchangeAndDraw(x, y, oldx, oldy);
     }
 }
 
 class Solid extends Element {
-    constructor(x, y, color, movable, velociry, density) {
-        super(x, y, color, movable, velociry, density);
+    constructor(x, y, color, movable, velocity, density) {
+        super(x, y, color, movable, velocity, density);
     }
 
     move() {
@@ -150,8 +151,8 @@ class Solid extends Element {
 }
 
 class Gas extends Element {
-    constructor(x, y, color, velociry, density) {
-        super(x, y, color, true, velociry, density);
+    constructor(x, y, color, velocity, density) {
+        super(x, y, color, true, velocity, density);
     }
 
     move() {
@@ -246,15 +247,15 @@ function run() {
     // initialize ===
 
     for (let i = 10; i <= 110; i++) {
-        eles[i][50] = new Stone(i, 50);
+        // eles[i][50] = new Stone(i, 50);
     }
 
     var update = () => {
         if (frame % 1 == 0) {
             eles[10][10] = new Water(10, 10);
-            eles[100][10] = new Sand(100, 10);
-            eles[50][10] = new Steam(50, 10);
-            eles[60][10] = new Snow(60, 10);
+            // eles[100][10] = new Sand(100, 10);
+            // eles[50][10] = new Steam(50, 10);
+            // eles[60][10] = new Snow(60, 10);
         }
         else if (frame == 60) {
             frame = 0;

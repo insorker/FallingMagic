@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>demo</title>
+    <style type="text/css">
+        canvas {
+            border: 1px solid #aaaaaa;
+            display: block;
+            margin: 50px auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="600">
+
+    </canvas>
+
+    <script type="text/javascript" src="../FallingMagic3.js"></script>
+    <script type="text/javascript">
+        function run() {
+            let world = new World('canvas');
+            world.build();
+
+            for (let i = 10; i <= 110; i++) {
+                world.setEle(new Stone(world, i, 50));
+            }
+
+            let frame = 0;
+            var update = () => {
+                // if (frame == 60) frame = 0;
+
+                world.setEle(new Water(world, 10, 10));
+                world.setEle(new Sand(world, 100, 10));
+                world.setEle(new Steam(world, 50, 10));
+                world.setEle(new Snow(world, 60, 10));
+                world.step();
+                
+                frame++;
+                requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+
+        run();
+    </script>
+</body>
+</html>

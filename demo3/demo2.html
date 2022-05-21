@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>demo</title>
+    <style type="text/css">
+        canvas {
+            border: 1px solid #aaaaaa;
+            display: block;
+            margin: 50px auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800" height="600">
+
+    </canvas>
+    <button type="button" id="ele-Empty">空</button>
+    <button type="button" id="ele-Water">水</button>
+    <button type="button" id="ele-Sand">沙子</button>
+    <button type="button" id="ele-Stone">石头</button>
+    <button type="button" id="ele-Snow">雪</button>
+
+    <script type="text/javascript" src="../FallingMagic3.js"></script>
+    <script type="text/javascript">
+        function run() {
+            function btnInit() {
+                let btnEmpty = document.getElementById("ele-Empty");
+                let btnWater = document.getElementById("ele-Water");
+                let btnSand = document.getElementById("ele-Sand");
+                let btnStone = document.getElementById("ele-Stone");
+                let btnSnow = document.getElementById("ele-Snow");
+                btnEmpty.onclick = function () { world.pen = Empty; };
+                btnWater.onclick = function () { world.pen = Water; };
+                btnSand.onclick = function () { world.pen = Sand; };
+                btnStone.onclick = function () { world.pen = Stone; };
+                btnSnow.onclick = function () { world.pen = Snow; };
+            }
+
+            let world = new World('canvas');
+            world.build();
+
+            const windowToCanvas = (canvas, x, y) => {
+                let rect = canvas.getBoundingClientRect()
+                return [
+                    x - rect.left * (canvas.width / rect.width),
+                    y - rect.top * (canvas.height / rect.height)
+                ];
+            }
+
+            btnInit();
+            let penEnable = false;
+            world.pen = Sand;
+            world.cvs.onmousedown = function (e) {
+                penEnable = true;
+            }
+            world.cvs.onmousemove = function (e) {
+                if (penEnable) {
+                    let x, y;
+                    [x, y] = windowToCanvas(world.cvs, e.clientX, e.clientY);
+                    world.setEle(new world.pen(
+                        world,
+                        Math.floor(x / world.eleSize),
+                        Math.floor(y / world.eleSize)
+                    ));
+                }
+            }
+            world.cvs.onmouseup = function (e) {
+                penEnable = false;
+            }
+
+            var update = () => {
+                world.step();
+
+                requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+        
+        run();
+    </script>
+</body>
+</html>

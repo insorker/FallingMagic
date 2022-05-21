@@ -2,16 +2,19 @@
  * World is defined as a bunch of pysical rules, which can be applied to instances of 
  * Class Elements and its subclasses. Also it can draw the result on a canvas.
  * 
- * You can customize your own world, but must implement the APIs below (more details 
- * and rules can be found in the comments of functions).
- *   isMovable(sx, sy, ex, ey)
- *   swap(x1, y1, x2, y2)
+ * You can customize your own world by extending Class World. APIs to be implemented 
+ * are shown below (more details and rules can be found in the comments of functions).
  */
 class World {
     constructor(canvasName) {
         // canvas and context
         this.cvs = document.getElementById(canvasName);
         this.ctx = this.cvs.getContext("2d");
+        this.pen = undefined;
+
+        this.cvs.onmousedown = this.onMouseDown;
+        this.cvs.onmousemove = this.onMouseMove;
+        this.cvs.onmouseup = this.onMouseUp;
 
         // global arguments
         this.eleSize = 6;
@@ -35,6 +38,18 @@ class World {
     }
 
     /*
+     * set element at (x, y)
+     */
+    setEle(ele) {
+        let x = ele.x, y = ele.y;
+
+        if (!this.isOutOfBounds(x, y)) {
+            this.eles[y][x] = ele;
+            this.drawEle(x, y);
+        }
+    }
+
+    /*
      * step per frame
      */
     step() {
@@ -49,23 +64,36 @@ class World {
             }
         }
 
-        // draw
-        this.draw();
+        // draw all elements can be very slow
+        // this.drawCanvas();
     }
 
     /*
      * draw canvas
      */
-    draw() {
+    drawCanvas() {
         for (let i = this.eleHeight - 1; i >= 0; i--) {
             for (let j = this.eleWidth - 1; j >= 0; j--) {
-                if (!(this.eles[i][j] instanceof Empty)) {
-                    this.ctx.fillStyle = this.eles[i][j].color;
-                    this.ctx.fillRect(j * this.eleSize, i * this.eleSize,
-                        this.eleSize, this.eleSize);
-                }
+                this.drawEle(j, i);
             }
         }
+    }
+
+    /*
+     * draw one element
+     */
+    drawEle(x, y) {
+        this.ctx.fillStyle = this.eles[y][x].color;
+        this.ctx.fillRect(x * this.eleSize, y * this.eleSize,
+            this.eleSize, this.eleSize);
+    }
+
+    clear(x, y, radius) {
+        // for (let i = x - radius; i <=  x + radius; i++) {
+        //     for (let j = y - radius; j <= y + radius; j++) {
+
+        //     }
+        // }
     }
 
     /*
@@ -74,8 +102,15 @@ class World {
     isOutOfBounds(x, y) {
         if (x < 0 || x >= this.eleWidth ||
             y < 0 || y >= this.eleHeight)
-            return true;
+                return true;
         return false;
+    }
+
+    /*
+     * if eles[x1][y1] can react with eles[x2][y2]
+     */
+    isReactive(x1, y1, x2, y2) {
+        
     }
 
     /*
@@ -88,6 +123,10 @@ class World {
         if (this.eles[ny][nx].movable == false)
             return false;
 
+        if (this.eles[sy][sx].type == 'Solid' &&
+            this.eles[ny][nx].type == 'Solid')
+            return false;
+
         if (this.eles[sy][sx].density >
             this.eles[ny][nx].density)
             return true;
@@ -96,15 +135,21 @@ class World {
     }
 
     /*
-     * swap ele[x1][y1] and ele[x2][y2] without checking
+     * swap ele[x1][y1] and ele[x2][y2] without checking 
+     * and draw after swap
      */
     swap(x1, y1, x2, y2) {
-        if (x1 == x2 && y1 == y2) return;
+        if (x1 == x2 && y1 == y2) {
+            return;
+        }
 
         [this.eles[y1][x1], this.eles[y2][x2]] =
             [this.eles[y2][x2], this.eles[y1][x1]];
         this.eles[y1][x1].setPos(x1, y1);
         this.eles[y2][x2].setPos(x2, y2);
+
+        this.drawEle(x1, y1);
+        this.drawEle(x2, y2);
     }
 }
 
@@ -112,7 +157,7 @@ class World {
  * Element is defined as eles in Class World. It's running under the pysical rules
  * in World.
  * Each class extends Element should implement functions below
- *   move(isMovable, swap)
+ * - move()
  */
 class Element {
     constructor(world, x, y, movable, velocity, density) {
@@ -122,6 +167,7 @@ class Element {
         this.movable = movable;
         this.velocity = velocity;
         this.density = density;
+        this.type = undefined;
 
         this.setColor([
             ['#ffffff', 1],
@@ -153,13 +199,22 @@ class Element {
     }
 
     /*
+     * reaction between elements
+     */
+    reaction(x1, y1, x2, y2) {
+
+    }
+
+    /*
      * move dist length straight with step length dx and dy
      */
     moveStraight(x, y, dist, dx, dy) {
         let sx = x, sy = y;
-        while (this.world.isMovable(sx, sy, x + dx, y + dy) && dist) {
+        while (dist && this.world.isMovable(sx, sy, x + dx, y + dy)) {
             x += dx, y += dy;
             dist--;
+
+            this.reaction(sx, sy, x, y);
         }
         return [x, y, dist];
     }
@@ -181,17 +236,22 @@ class Element {
     }
 }
 
+// === level one
 class Empty extends Element {
     constructor(world, x, y) {
         super(world, x, y, true, 0, 0);
+
+        this.type = 'Empty';
     }
 
     move() { }
 }
 
 class Liquid extends Element {
-    constructor(world, x, y, velociry, density) {
-        super(world, x, y, true, velociry, density);
+    constructor(world, x, y, velocity, density) {
+        super(world, x, y, true, velocity, density);
+
+        this.type = 'Liquid';
     }
 
     move() {
@@ -211,88 +271,98 @@ class Liquid extends Element {
     }
 }
 
-// class Solid extends Element {
-//     constructor(x, y, color, movable, velociry, density) {
-//         super(x, y, color, movable, velociry, density);
-//     }
+class Solid extends Element {
+    constructor(world, x, y, movable, velocity, density) {
+        super(world, x, y, movable, velocity, density);
 
-//     move() {
-//         if (this.movable == false) {
-//             this.draw();
-//             return;
-//         }
+        this.type = 'Solid';
+        this.isFreeFalling = true;
+    }
 
-//         let v = this.velocity;
-//         let x = this.x, y = this.y;
-//         let oldx = this.x, oldy = this.y;
+    // +++ inertialResistance
+    // constructor(world, x, y, movable, velocity, density, inertialResistance) {
+    //     super(world, x, y, movable, velocity, density);
 
-//         if (Element.isMovable(oldx, oldy, x, y + 1)) {
-//             // go down
-//             while (v && Element.isMovable(oldx, oldy, x, y + 1)) {
-//                 y += 1;
-//                 v -= 1;
-//             }
-//         }
-//         else {
-//             // go down left or down right
-//             let dir = Math.floor(Math.random() * 2);
-//             if (dir == 0) { dir = -1; }
+    //     this.inertialResistance = inertialResistance;
+    // }
 
-//             while (v && Element.isMovable(oldx, oldy, x + dir, y + 1)) {
-//                 x += dir;
-//                 y += 1;
-//                 v -= 1;
-//             }
-//         }
+    // moveDown(x, y, dist) {
+    //     let sx = x, sy = y;
+    //     while (dist && this.world.isMovable(sx, sy, x, y + 1)) {
+    //         y += 1;
+    //         dist--;
+    //     }
+    //     return [x, y, dist];
+    // }
+    // inertialResistance +++
 
-//         Element.exchangeAndDraw(x, y, oldx, oldy);
-//     }
-// }
+    move() {
+        if (this.movable == false) return;
 
-// class Gas extends Element {
-//     constructor(x, y, color, velociry, density) {
-//         super(x, y, color, true, velociry, density);
-//     }
+        let v = this.velocity;
+        let x = this.x, y = this.y;
+        if (this.world.isMovable(x, y, x, y + 1))
+            this.isFreeFalling = true;
+        else {
+            if (!this.world.isMovable(x, y, x - 1, y + 1) &&
+                !this.world.isMovable(x, y, x + 1, y + 1)) {
+                    this.isFreeFalling = false;
+                }
+        }
+        if (this.isFreeFalling == false) return;
 
-//     move() {
-//         let v = this.velocity;
-//         let x = this.x, y = this.y;
-//         let oldx = this.x, oldy = this.y;
-//         let dir = Math.floor(Math.random() * 3) - 1;
+        [x, y, v] = this.moveDown(x, y, v);
+        if (v) {
+            let leftOrRight = Math.floor(Math.random() * 2);
+            if (leftOrRight) {
+                if (this.world.isMovable(x, y, x - 1, y + 1)) {
+                    [x, y, ] = this.moveLeft(x, y, 1);
+                    [x, y, v] = this.moveDown(x, y, v);
+                }
+            }
+            else {
+                if (this.world.isMovable(x, y, x + 1, y + 1)) {
+                    [x, y, ] = this.moveRight(x, y, 1);
+                    [x, y, v] = this.moveDown(x, y, v);
+                }
+            }
+        }
 
-//         if (Element.isMovable(oldx, oldy, x + dir, y - 1)) {
-//             // go up left or up right
-//             while (v && Element.isMovable(oldx, oldy, x + dir, y - 1)) {
-//                 x += dir;
-//                 y -= 1;
-//                 v -= 1;
-//             }
-//         }
-//         else {
-//             // just go horizontally
-//             while (v && Element.isMovable(oldx, oldy, x + dir, y)) {
-//                 x += dir;
-//                 v -= 1;
-//             }
-//         }
+        this.world.swap(this.x, this.y, x, y);
+    }
+}
 
-//         Element.exchangeAndDraw(x, y, oldx, oldy);
-//     }
-// }
+class Gas extends Element {
+    constructor(world, x, y, color, velocity, density) {
+        super(world, x, y, color, true, velocity, density);
 
-// class Magic extends Element {
-//     constructor(x, y, color, velociry, density) {
-//         super(x, y, color, true, velociry, density);
-//     }
+        this.type = 'Gas';
+    }
 
-//     move() {
-//         let 
-//     }
-// }
+    move() {
+        if (this.movable == false) return;
 
+        let v = this.velocity;
+        let x = this.x, y = this.y;
+
+        [x, y, v] = this.moveUp(x, y, v);
+        if (v) {
+            let leftOrRight = Math.floor(Math.random() * 2);
+            if (leftOrRight)
+                [x, y, v] = this.moveLeft(x, y, v);
+            else
+                [x, y, v] = this.moveRight(x, y, v);
+        }
+
+        this.world.swap(this.x, this.y, x, y);
+    }
+}
+// level one ===
+
+// === level two
 class Water extends Liquid {
     constructor(world, x, y) {
-        super(world, x, y, 4, 1);
+        super(world, x, y, 4, 1.0);
 
         this.setColor([
             ['#2486b9', 1]
@@ -300,70 +370,47 @@ class Water extends Liquid {
     }
 }
 
-// class Sand extends Solid {
-//     constructor(x, y) {
-//         super(x, y, [['#f9c116', 1]], true, 1, 1.2);
-//     }
-// }
+class Sand extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, true, 1, 1.2);
 
-// class Stone extends Solid {
-//     constructor(x, y) {
-//         super(x, y, [['#0f1423', 1]], false, 1, 10);
-//     }
-// }
-
-// class Steam extends Gas {
-//     constructor(x, y) {
-//         super(x, y, [['#8abcd1', 1], ['#eeeeee', 2]], 8, 0.5);
-//     }
-// }
-
-// class Snow extends Solid {
-//     constructor(x, y) {
-//         super(x, y, [['#baccd9', 1]], true, 3, 0.8);
-//     }
-
-//     move() {
-//         let v = this.velocity;
-//         let x = this.x, y = this.y;
-//         let oldx = this.x, oldy = this.y;
-//         let dir = Math.floor(Math.random() * 3) - 1;
-
-//         if (Element.isMovable(oldx, oldy, x + dir, y + 1)) {
-//             // go up left or up right
-//             while (v && Element.isMovable(oldx, oldy, x + dir, y + 1)) {
-//                 x += dir;
-//                 y += 1;
-//                 v -= 1;
-//             }
-//         }
-//         else {
-//             // just go horizontally
-//             while (v && Element.isMovable(oldx, oldy, x + dir, y)) {
-//                 x += dir;
-//                 v -= 1;
-//             }
-//         }
-
-//         Element.exchangeAndDraw(x, y, oldx, oldy);
-//     }
-// }
-
-function run() {
-    let world = new World('canvas');
-    world.build();
-    
-    let frame = 0;
-    var update = () => {
-        if (frame == 60) frame = 0;
-
-        world.eles[10][10] = new Water(world, 10, 10);
-        world.step();
-
-        frame++;
-        requestAnimationFrame(update)
+        this.setColor([
+            ['#f9c116', 2],
+            ['#d6a01d', 3]
+        ]);
     }
-    requestAnimationFrame(update)
 }
 
-window.onload = run;
+class Stone extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, false, 1, 10);
+
+        this.setColor([
+            ['#0f1423', 1]
+        ]);
+
+        this.isFreeFalling = false;
+    }
+}
+
+class Steam extends Gas {
+    constructor(world, x, y) {
+        super(world, x, y, 8, 0.5);
+
+        this.setColor([
+            ['#8abcd1', 1],
+            ['#eeeeee', 2]
+        ]);
+    }
+}
+
+class Snow extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, true, 2, 0.8);
+
+        this.setColor([
+            ['#baccd9', 1]
+        ]);
+    }
+}
+// level two ===
