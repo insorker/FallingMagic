@@ -12,10 +12,6 @@ class World {
         this.ctx = this.cvs.getContext("2d");
         this.pen = undefined;
 
-        this.cvs.onmousedown = this.onMouseDown;
-        this.cvs.onmousemove = this.onMouseMove;
-        this.cvs.onmouseup = this.onMouseUp;
-
         // global arguments
         this.eleSize = 6;
         this.eleWidth = Math.ceil(this.cvs.width / this.eleSize);
@@ -24,6 +20,8 @@ class World {
         // take elements as a 2d array
         this.eles = new Array(this.eleHeight).fill(0).map(
             () => new Array(this.eleWidth).fill(0));
+        this.eleVisited = new Array(this.eleHeight).fill(false).map(
+            () => new Array(this.eleWidth).fill(false));
     }
 
     /*
@@ -66,6 +64,9 @@ class World {
 
         // draw all elements can be very slow
         // this.drawCanvas();
+
+        // clear visit state
+        this.clearEleVisited();
     }
 
     /*
@@ -83,7 +84,7 @@ class World {
      * draw one element
      */
     drawEle(x, y) {
-        this.ctx.fillStyle = this.eles[y][x].color;
+        this.ctx.fillStyle = this.eles[y][x].getColor();
         this.ctx.fillRect(x * this.eleSize, y * this.eleSize,
             this.eleSize, this.eleSize);
     }
@@ -94,6 +95,18 @@ class World {
 
         //     }
         // }
+    }
+
+    setVisited(x, y, bool) {
+        this.eleVisited[y][x] = bool;
+    }
+
+    clearEleVisited() {
+        for (let i = this.eleHeight - 1; i >= 0; i--) {
+            for (let j = this.eleWidth - 1; j >= 0; j--) {
+                this.eleVisited[i][j] = false;
+            }
+        }
     }
 
     /*
@@ -120,6 +133,10 @@ class World {
         if (this.isOutOfBounds(nx, ny))
             return false;
         
+        if (this.eleVisited[sy][sx] ||
+            this.eleVisited[ny][nx])
+            return false;
+
         if (this.eles[ny][nx].movable == false)
             return false;
 
@@ -139,9 +156,7 @@ class World {
      * and draw after swap
      */
     swap(x1, y1, x2, y2) {
-        if (x1 == x2 && y1 == y2) {
-            return;
-        }
+        // if (x1 == x2 && y1 == y2) return;
 
         [this.eles[y1][x1], this.eles[y2][x2]] =
             [this.eles[y2][x2], this.eles[y1][x1]];
@@ -150,7 +165,16 @@ class World {
 
         this.drawEle(x1, y1);
         this.drawEle(x2, y2);
+
+        this.setVisited(x1, y1, true);
+        this.setVisited(x2, y2, true);
     }
+
+    // === reaction
+    burn() {
+
+    }
+    // reaction ===
 }
 
 /*
@@ -168,10 +192,11 @@ class Element {
         this.velocity = velocity;
         this.density = density;
         this.type = undefined;
-
-        this.setColor([
+        this.colorArray = [
             ['#ffffff', 1],
-        ]);
+        ];
+
+        this.setColor();
     }
 
     /*
@@ -184,18 +209,26 @@ class Element {
     /*
      *  set color
      */
-    setColor(colorArray) {
-        let random = Math.floor(Math.random() * colorArray[colorArray.length - 1][1]);
+    setColor() {
+        let random = Math.floor(Math.random() * 
+            this.colorArray[this.colorArray.length - 1][1]);
         
-        for (let i = 0; i < colorArray.length; i++) {
-            if (random < colorArray[i][1]) {
-                this.color = colorArray[i][0];
-                return;
+        for (let i = 0; i < this.colorArray.length; i++) {
+            if (random < this.colorArray[i][1]) {
+                return this.color = this.colorArray[i][0];
             }
         }
 
         // error
         console.assert(false, "setColor error");
+        return -1;
+    }
+
+    /*
+     * get color
+     */
+    getColor() {
+        return this.color;
     }
 
     /*
@@ -333,28 +366,45 @@ class Solid extends Element {
 }
 
 class Gas extends Element {
-    constructor(world, x, y, color, velocity, density) {
-        super(world, x, y, color, true, velocity, density);
+    constructor(world, x, y, velocity, density) {
+        super(world, x, y, true, velocity, density);
 
+        this.dispear = false;
         this.type = 'Gas';
     }
 
-    move() {
-        if (this.movable == false) return;
+    getColor() {
+        return this.setColor();
+    }
 
+    move() {
         let v = this.velocity;
         let x = this.x, y = this.y;
 
         [x, y, v] = this.moveUp(x, y, v);
-        if (v) {
-            let leftOrRight = Math.floor(Math.random() * 2);
-            if (leftOrRight)
-                [x, y, v] = this.moveLeft(x, y, v);
-            else
-                [x, y, v] = this.moveRight(x, y, v);
+        if (v == this.velocity) {
+            if (this.dispear) {
+                this.world.setEle(new Empty(this.world, this.x, this.y));
+                return;
+            }
+            else {
+                let leftOrRight = Math.floor(Math.random() * 2);
+                if (leftOrRight)
+                    [x, y, v] = this.moveLeft(x, y, v);
+                else
+                    [x, y, v] = this.moveRight(x, y, v);
+            }
         }
 
         this.world.swap(this.x, this.y, x, y);
+    }
+}
+
+class Magic extends Element {
+    constructor(world, x, y, movable) {
+        super(world, x, y, movable, 0, 0);
+
+        this.type = 'Magic';
     }
 }
 // level one ===
@@ -364,9 +414,10 @@ class Water extends Liquid {
     constructor(world, x, y) {
         super(world, x, y, 4, 1.0);
 
-        this.setColor([
+        this.colorArray = [
             ['#2486b9', 1]
-        ]);
+        ];
+        this.setColor();
     }
 }
 
@@ -374,10 +425,11 @@ class Sand extends Solid {
     constructor(world, x, y) {
         super(world, x, y, true, 1, 1.2);
 
-        this.setColor([
+        this.colorArray = [
             ['#f9c116', 2],
             ['#d6a01d', 3]
-        ]);
+        ];
+        this.setColor();
     }
 }
 
@@ -385,9 +437,10 @@ class Stone extends Solid {
     constructor(world, x, y) {
         super(world, x, y, false, 1, 10);
 
-        this.setColor([
+        this.colorArray = [
             ['#0f1423', 1]
-        ]);
+        ];
+        this.setColor();
 
         this.isFreeFalling = false;
     }
@@ -395,12 +448,13 @@ class Stone extends Solid {
 
 class Steam extends Gas {
     constructor(world, x, y) {
-        super(world, x, y, 8, 0.5);
+        super(world, x, y, 4, 0.5);
 
-        this.setColor([
+        this.colorArray = [
             ['#8abcd1', 1],
             ['#eeeeee', 2]
-        ]);
+        ];
+        this.setColor();
     }
 }
 
@@ -408,9 +462,34 @@ class Snow extends Solid {
     constructor(world, x, y) {
         super(world, x, y, true, 2, 0.8);
 
-        this.setColor([
+        this.colorArray = [
             ['#baccd9', 1]
-        ]);
+        ];
+        this.setColor();
+    }
+}
+
+class Fire extends Magic {
+    constructor(world, x, y, movable) {
+        super(world, x, y, true);
+
+        this.colorArray = [
+            ['#eccb83', 1],
+            ['#e07e38', 2]
+        ];
+        this.setColor();
+
+        this.live = 5;
+    }
+
+    getColor() {
+        return this.setColor();
+    }
+
+    move() {
+        let x = this.x, y = this.y;
+
+        this.world.drawEle(this.x, this.y);
     }
 }
 // level two ===
