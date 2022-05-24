@@ -540,12 +540,15 @@ class Fire extends Magic {
         if (this.live % this.duration == 0) {
             for (let i = 0; i < 4; i++) {
                 let nx = x + this.world.dirx[i], ny = y + this.world.diry[i];
+                // e.g. wood
                 if (this.world.isCombustible(x, y, nx, ny)) {
                     this.world.setEle(new Fire(this.world, nx, ny));
                     return;
                 }
+                // e.g. water
                 else if (this.world.isVolatile(x, y, nx, ny)) {
                     this.world.setEle(new Steam(this.world, nx, ny));
+                    this.live = 0;
                     return;
                 }
             }

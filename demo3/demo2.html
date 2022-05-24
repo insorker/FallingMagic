@@ -17,6 +17,7 @@
     <canvas id="canvas" width="800" height="600">
 
     </canvas>
+    <button type="button" id="pensize">笔刷大小-0</button>
     <button type="button" id="ele-Empty">空</button>
     <button type="button" id="ele-Water">水</button>
     <button type="button" id="ele-Sand">沙子</button>
@@ -29,7 +30,28 @@
     <script type="text/javascript" src="../FallingMagic3.js"></script>
     <script type="text/javascript">
         function run() {
-            function btnInit() {
+            let world = new World('canvas');
+            world.build();
+
+            const windowToCanvas = (canvas, x, y) => {
+                let rect = canvas.getBoundingClientRect()
+                return [
+                    x - rect.left * (canvas.width / rect.width),
+                    y - rect.top * (canvas.height / rect.height)
+                ];
+            }
+
+            (function () {
+                let btnpensize = document.getElementById("pensize");
+                btnpensize.onclick = function() {
+                    if (pensize == 5)
+                        pensize = 0;
+                    else
+                        pensize++;
+                    
+                    btnpensize.innerHTML = '笔刷大小-' + pensize;
+                }
+
                 let btnEmpty = document.getElementById("ele-Empty");
                 let btnWater = document.getElementById("ele-Water");
                 let btnSand = document.getElementById("ele-Sand");
@@ -46,42 +68,48 @@
                 btnSteam.onclick = function () { world.pen = Steam; };
                 btnFire.onclick = function () { world.pen = Fire; };
                 btnWood.onclick = function () { world.pen = Wood; };
-            }
+            })()
 
-            let world = new World('canvas');
-            world.build();
-
-            const windowToCanvas = (canvas, x, y) => {
-                let rect = canvas.getBoundingClientRect()
-                return [
-                    x - rect.left * (canvas.width / rect.width),
-                    y - rect.top * (canvas.height / rect.height)
-                ];
-            }
-
-            btnInit();
             let penEnable = false;
+            let penx = 0, peny = 0;
+            let pensize = 0;
             world.pen = Sand;
+
             world.cvs.onmousedown = function (e) {
                 penEnable = true;
+                [penx, peny] = windowToCanvas(world.cvs, e.clientX, e.clientY);
             }
             world.cvs.onmousemove = function (e) {
                 if (penEnable) {
-                    let x, y;
-                    [x, y] = windowToCanvas(world.cvs, e.clientX, e.clientY);
-                    world.setEle(new world.pen(
-                        world,
-                        Math.floor(x / world.eleSize),
-                        Math.floor(y / world.eleSize)
-                    ));
+                    [penx, peny] = windowToCanvas(world.cvs, e.clientX, e.clientY);
                 }
             }
             world.cvs.onmouseup = function (e) {
                 penEnable = false;
             }
+            function brush() {
+                let x = penx / world.eleSize, y = peny / world.eleSize;
+                for (let i = x - pensize; i <= x + pensize; i++)
+                    for (let j = y - pensize; j <= y + pensize; j++) {
+                        world.setEle(new world.pen(
+                            world,
+                            Math.floor(i),
+                            Math.floor(j)
+                        ));
+                    }
+            }
 
-            var update = () => {
+            let frame = 60;
+            function update () {
                 world.step();
+
+                if (frame % 2 == 0) {
+                    if (penEnable) {
+                        brush();
+                    }
+                }
+                if (--frame == 0) frame = 60;
+                
                 
                 requestAnimationFrame(update);
             }

@@ -32,6 +32,6 @@ FallingMagic.js和FallingMagic2.js的模板文件
 
 FallingMagic3.js的模板文件
 
-### demo/
+### demo3/
 
 包含一系列对FallingMagic3.js的测试文件
