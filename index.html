@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>demo</title>
     <style type="text/css">
         canvas {
             border: 1px solid #aaaaaa;
@@ -17,7 +17,106 @@
     <canvas id="canvas" width="800" height="600">
 
     </canvas>
+    <button type="button" id="pensize">笔刷大小-0</button>
+    <button type="button" id="ele-Empty">空</button>
+    <button type="button" id="ele-Water">水</button>
+    <button type="button" id="ele-Sand">沙子</button>
+    <button type="button" id="ele-Stone">石头</button>
+    <button type="button" id="ele-Snow">雪</button>
+    <button type="button" id="ele-Steam">水蒸气</button>
+    <button type="button" id="ele-Fire">火</button>
+    <button type="button" id="ele-Wood">木头</button>
 
-    <script type="text/javascript" src="./FallingMagic2.js"></script>
+    <script type="text/javascript" src="/FallingMagic3.js"></script>
+    <script type="text/javascript">
+        function run() {
+            let world = new World('canvas');
+            world.build();
+
+            const windowToCanvas = (canvas, x, y) => {
+                let rect = canvas.getBoundingClientRect()
+                return [
+                    x - rect.left * (canvas.width / rect.width),
+                    y - rect.top * (canvas.height / rect.height)
+                ];
+            }
+
+            (function () {
+                let btnpensize = document.getElementById("pensize");
+                btnpensize.onclick = function() {
+                    if (pensize == 5)
+                        pensize = 0;
+                    else
+                        pensize++;
+                    
+                    btnpensize.innerHTML = '笔刷大小-' + pensize;
+                }
+
+                let btnEmpty = document.getElementById("ele-Empty");
+                let btnWater = document.getElementById("ele-Water");
+                let btnSand = document.getElementById("ele-Sand");
+                let btnStone = document.getElementById("ele-Stone");
+                let btnSnow = document.getElementById("ele-Snow");
+                let btnSteam = document.getElementById("ele-Steam");
+                let btnFire = document.getElementById("ele-Fire");
+                let btnWood = document.getElementById("ele-Wood");
+                btnEmpty.onclick = function () { world.pen = Empty; };
+                btnWater.onclick = function () { world.pen = Water; };
+                btnSand.onclick = function () { world.pen = Sand; };
+                btnStone.onclick = function () { world.pen = Stone; };
+                btnSnow.onclick = function () { world.pen = Snow; };
+                btnSteam.onclick = function () { world.pen = Steam; };
+                btnFire.onclick = function () { world.pen = Fire; };
+                btnWood.onclick = function () { world.pen = Wood; };
+            })()
+
+            let penEnable = false;
+            let penx = 0, peny = 0;
+            let pensize = 0;
+            world.pen = Sand;
+
+            world.cvs.onmousedown = function (e) {
+                penEnable = true;
+                [penx, peny] = windowToCanvas(world.cvs, e.clientX, e.clientY);
+            }
+            world.cvs.onmousemove = function (e) {
+                if (penEnable) {
+                    [penx, peny] = windowToCanvas(world.cvs, e.clientX, e.clientY);
+                }
+            }
+            world.cvs.onmouseup = function (e) {
+                penEnable = false;
+            }
+            function brush() {
+                let x = penx / world.eleSize, y = peny / world.eleSize;
+                for (let i = x - pensize; i <= x + pensize; i++)
+                    for (let j = y - pensize; j <= y + pensize; j++) {
+                        world.setEle(new world.pen(
+                            world,
+                            Math.floor(i),
+                            Math.floor(j)
+                        ));
+                    }
+            }
+
+            let frame = 60;
+            function update () {
+                world.step();
+
+                if (frame % 2 == 0) {
+                    if (penEnable) {
+                        brush();
+                    }
+                }
+                if (--frame == 0) frame = 60;
+                
+                
+                requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+        
+        run();
+    </script>
 </body>
 </html>

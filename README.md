@@ -24,7 +24,7 @@ a tiny falling sand simulator
 
 ## 使用
 
-### index.html
+### index2.html
 
 FallingMagic.js和FallingMagic2.js的模板文件
 
