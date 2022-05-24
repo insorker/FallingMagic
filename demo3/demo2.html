@@ -24,6 +24,7 @@
     <button type="button" id="ele-Snow">雪</button>
     <button type="button" id="ele-Steam">水蒸气</button>
     <button type="button" id="ele-Fire">火</button>
+    <button type="button" id="ele-Wood">木头</button>
 
     <script type="text/javascript" src="../FallingMagic3.js"></script>
     <script type="text/javascript">
@@ -36,6 +37,7 @@
                 let btnSnow = document.getElementById("ele-Snow");
                 let btnSteam = document.getElementById("ele-Steam");
                 let btnFire = document.getElementById("ele-Fire");
+                let btnWood = document.getElementById("ele-Wood");
                 btnEmpty.onclick = function () { world.pen = Empty; };
                 btnWater.onclick = function () { world.pen = Water; };
                 btnSand.onclick = function () { world.pen = Sand; };
@@ -43,6 +45,7 @@
                 btnSnow.onclick = function () { world.pen = Snow; };
                 btnSteam.onclick = function () { world.pen = Steam; };
                 btnFire.onclick = function () { world.pen = Fire; };
+                btnWood.onclick = function () { world.pen = Wood; };
             }
 
             let world = new World('canvas');
@@ -79,7 +82,7 @@
 
             var update = () => {
                 world.step();
-
+                
                 requestAnimationFrame(update);
             }
             requestAnimationFrame(update);

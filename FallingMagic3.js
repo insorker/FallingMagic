@@ -6,6 +6,9 @@
  * are shown below (more details and rules can be found in the comments of functions).
  */
 class World {
+    dirx = [0, 1, 0, -1];
+    diry = [1, 0, -1, 0];
+
     constructor(canvasName) {
         // canvas and context
         this.cvs = document.getElementById(canvasName);
@@ -31,6 +34,7 @@ class World {
         for (let i = 0; i < this.eleHeight; i++) {
             for (let j = 0; j < this.eleWidth; j++) {
                 this.eles[i][j] = new Empty(world, j, i);
+                this.setVisited(j, i);
             }
         }
     }
@@ -44,6 +48,8 @@ class World {
         if (!this.isOutOfBounds(x, y)) {
             this.eles[y][x] = ele;
             this.drawEle(x, y);
+
+            this.setVisited(x, y, true);
         }
     }
 
@@ -120,13 +126,6 @@ class World {
     }
 
     /*
-     * if eles[x1][y1] can react with eles[x2][y2]
-     */
-    isReactive(x1, y1, x2, y2) {
-        
-    }
-
-    /*
      * if eles[sx][sy] can move to eles[nx][ny]
      */
     isMovable(sx, sy, nx, ny) {
@@ -152,7 +151,7 @@ class World {
     }
 
     /*
-     * swap ele[x1][y1] and ele[x2][y2] without checking 
+     * swap eles[x1][y1] and eles[x2][y2] without checking 
      * and draw after swap
      */
     swap(x1, y1, x2, y2) {
@@ -171,9 +170,42 @@ class World {
     }
 
     // === reaction
-    burn() {
+    isCombustible(sx, sy, nx, ny) {
+        if (this.isOutOfBounds(nx, ny))
+            return false;
+        
+        if (this.eleVisited[sy][sx] ||
+            this.eleVisited[ny][nx])
+            return false;
 
+        if (this.eles[ny][nx].combustible)
+            return true;
+        
+        return false;
     }
+
+    isVolatile(sx, sy, nx, ny) {
+        if (this.isOutOfBounds(nx, ny))
+            return false;
+        
+        if (this.eleVisited[sy][sx] ||
+            this.eleVisited[ny][nx])
+            return false;
+
+        if (this.eles[ny][nx].volatile)
+            return true;
+        
+        return false;
+    }
+
+    // diffuse(sx, sy) {
+    //     for (let i = 0; i < 4; i++) {
+    //         let nx = sx + World.dirx[i], ny = sy + World.diry[i];
+    //         if (this.isMovable(x, y, nx, ny)) {
+
+    //         }
+    //     }
+    // }
     // reaction ===
 }
 
@@ -232,13 +264,6 @@ class Element {
     }
 
     /*
-     * reaction between elements
-     */
-    reaction(x1, y1, x2, y2) {
-
-    }
-
-    /*
      * move dist length straight with step length dx and dy
      */
     moveStraight(x, y, dist, dx, dy) {
@@ -246,8 +271,6 @@ class Element {
         while (dist && this.world.isMovable(sx, sy, x + dx, y + dy)) {
             x += dx, y += dy;
             dist--;
-
-            this.reaction(sx, sy, x, y);
         }
         return [x, y, dist];
     }
@@ -272,7 +295,7 @@ class Element {
 // === level one
 class Empty extends Element {
     constructor(world, x, y) {
-        super(world, x, y, true, 0, 0);
+        super(world, x, y, true, 0, -1);
 
         this.type = 'Empty';
     }
@@ -285,6 +308,7 @@ class Liquid extends Element {
         super(world, x, y, true, velocity, density);
 
         this.type = 'Liquid';
+        this.volatile = true;
     }
 
     move() {
@@ -448,11 +472,10 @@ class Stone extends Solid {
 
 class Steam extends Gas {
     constructor(world, x, y) {
-        super(world, x, y, 4, 0.5);
+        super(world, x, y, 2, 0.5);
 
         this.colorArray = [
-            ['#8abcd1', 1],
-            ['#eeeeee', 2]
+            ['#cdd1d3', 1]
         ];
         this.setColor();
     }
@@ -470,7 +493,7 @@ class Snow extends Solid {
 }
 
 class Fire extends Magic {
-    constructor(world, x, y, movable) {
+    constructor(world, x, y) {
         super(world, x, y, true);
 
         this.colorArray = [
@@ -479,17 +502,72 @@ class Fire extends Magic {
         ];
         this.setColor();
 
-        this.live = 5;
+        this.velocity = 2;
+        this.live = 120;
+        this.duration = 6;
     }
 
     getColor() {
         return this.setColor();
     }
 
+    die() {
+        if (this.live == 0) {
+            this.world.setEle(new Empty(this.world, this.x, this.y));
+            return true;
+        }
+
+        this.live--;
+        return false;
+    }
+
+    setFlame() {
+        // let v = this.velocity;
+        // let x = this.x, y = this.y;
+        // [x, y, v] = this.moveUp(x, y, v);
+
+        // let flame = new Fire(this.world, x, y);
+        // flame.live = 0;
+
+        // this.world.setEle(flame);
+    }
+
     move() {
+        if (this.die()) return;
+        
         let x = this.x, y = this.y;
 
+        if (this.live % this.duration == 0) {
+            for (let i = 0; i < 4; i++) {
+                let nx = x + this.world.dirx[i], ny = y + this.world.diry[i];
+                if (this.world.isCombustible(x, y, nx, ny)) {
+                    this.world.setEle(new Fire(this.world, nx, ny));
+                    return;
+                }
+                else if (this.world.isVolatile(x, y, nx, ny)) {
+                    this.world.setEle(new Steam(this.world, nx, ny));
+                    return;
+                }
+            }
+        }
+        
+        this.setFlame();
         this.world.drawEle(this.x, this.y);
+    }
+}
+
+class Wood extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, false, 1, 10);
+
+        this.colorArray = [
+            ['#806332', 1],
+            ['#553b18', 2],
+        ];
+        this.setColor();
+
+        this.isFreeFalling = false;
+        this.combustible = true;
     }
 }
 // level two ===
