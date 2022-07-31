@@ -155,7 +155,10 @@ class World {
      * and draw after swap
      */
     swap(x1, y1, x2, y2) {
-        // if (x1 == x2 && y1 == y2) return;
+        if (x1 == x2 && y1 == y2) {
+            this.drawEle(x1, y1);
+            return;
+        }
 
         [this.eles[y1][x1], this.eles[y2][x2]] =
             [this.eles[y2][x2], this.eles[y1][x1]];
