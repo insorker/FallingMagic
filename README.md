@@ -12,26 +12,10 @@ a tiny falling sand simulator
 
 ### FallingMagic.js
 
-最简化的FallingMagic形式，时间上下文无关
-
-### FallingMagic2.js
-
-将上一版本转化为面向对象的形式
-
-### FallingMagic3.js
-
 使用更合理的层次结构
 
 ## 使用
 
-### index2.html
+### index.html
 
-FallingMagic.js和FallingMagic2.js的模板文件
-
-### index3.html
-
-FallingMagic3.js的模板文件
-
-### demo3/
-
-包含一系列对FallingMagic3.js的测试文件
+双击运行

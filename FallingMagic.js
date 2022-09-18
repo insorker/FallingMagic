@@ -1,17 +1,18 @@
 /* 
  * World is defined as a bunch of pysical rules, which can be applied to instances of 
- * Class Elements and its subclasses. Also it can draw the result on a canvas.
+ * Element and its subclasses. With elements, World can perform a lively world on the
+ * html5 canvas.
  * 
- * You can customize your own world by extending Class World. APIs to be implemented 
- * are shown below (more details and rules can be found in the comments of functions).
+ * You can customize your own world by extending World. APIs to be implemented are 
+ * shown below (more details and rules can be found in the comments of functions).
  */
 class World {
     dirx = [0, 1, 0, -1];
     diry = [1, 0, -1, 0];
 
-    constructor(canvasName) {
+    constructor(canvas) {
         // canvas and context
-        this.cvs = document.getElementById(canvasName);
+        this.cvs = canvas;
         this.ctx = this.cvs.getContext("2d");
         this.pen = undefined;
 
@@ -21,22 +22,56 @@ class World {
         this.eleHeight = Math.ceil(this.cvs.height / this.eleSize);
 
         // take elements as a 2d array
+        // layout of elements is drawn below
+        /*              eleWidth
+         *           .---- j ---> x
+         *           |
+         * eleHeight i  ele[i][j] <=> ele[y][x]
+         *           |
+         *           \/
+         *           y
+         */
         this.eles = new Array(this.eleHeight).fill(0).map(
             () => new Array(this.eleWidth).fill(0));
-        this.eleVisited = new Array(this.eleHeight).fill(false).map(
-            () => new Array(this.eleWidth).fill(false));
+        this.eleAccess = new Array(this.eleHeight).fill(true).map(
+            () => new Array(this.eleWidth).fill(true));
     }
 
     /*
-     * build the world
+     * rebuild the world
      */
-    build(world) {
+    rebuild(world) {
         for (let i = 0; i < this.eleHeight; i++) {
             for (let j = 0; j < this.eleWidth; j++) {
                 this.eles[i][j] = new Empty(world, j, i);
-                this.setVisited(j, i);
+                this.setAccess(j, i, true);
             }
         }
+    }
+
+    /*
+     * step per frame
+     */
+    step() {
+        for (let i = 0; i < this.eleHeight; i++) {
+            for (let j = 0; j < this.eleWidth; j++) {
+                if (!(this.eles[i][j] instanceof Empty)) {
+                    // === do something
+                    this.eles[i][j].move();
+                    // do something ===
+                }
+            }
+        }
+
+        // clear access state
+        this.clearEleAccess();
+    }
+
+    /*
+     * get element at (x, y)
+     */
+    getEle(x, y) {
+        return this.eles[y][x];
     }
 
     /*
@@ -48,40 +83,31 @@ class World {
         if (!this.isOutOfBounds(x, y)) {
             this.eles[y][x] = ele;
             this.drawEle(x, y);
-
-            this.setVisited(x, y, true);
+            this.setAccess(x, y, false);
         }
     }
 
     /*
-     * step per frame
+     * set access state
      */
-    step() {
-        // move
-        for (let i = this.eleHeight - 1; i >= 0; i--) {
-            for (let j = this.eleWidth - 1; j >= 0; j--) {
-                if (!(this.eles[i][j] instanceof Empty)) {
-                    // === do something
-                    this.eles[i][j].move();
-                    // do something ===
-                }
-            }
-        }
-
-        // draw all elements can be very slow
-        // this.drawCanvas();
-
-        // clear visit state
-        this.clearEleVisited();
+    setAccess(x, y, bool) {
+        this.eleAccess[y][x] = bool;
     }
 
     /*
-     * draw canvas
+     * get access state
      */
-    drawCanvas() {
-        for (let i = this.eleHeight - 1; i >= 0; i--) {
-            for (let j = this.eleWidth - 1; j >= 0; j--) {
-                this.drawEle(j, i);
+    getAccess(x, y) {
+        return this.eleAccess[y][x];
+    }
+
+    /*
+     * clear access state
+     */
+    clearEleAccess() {
+        for (let i = 0; i < this.eleHeight; i++) {
+            for (let j = 0; j < this.eleWidth; j++) {
+                this.eleAccess[i][j] = true;
             }
         }
     }
@@ -90,33 +116,13 @@ class World {
      * draw one element
      */
     drawEle(x, y) {
-        this.ctx.fillStyle = this.eles[y][x].getColor();
+        this.ctx.fillStyle = this.getEle(x, y).getColor();
         this.ctx.fillRect(x * this.eleSize, y * this.eleSize,
             this.eleSize, this.eleSize);
     }
 
-    clear(x, y, radius) {
-        // for (let i = x - radius; i <=  x + radius; i++) {
-        //     for (let j = y - radius; j <= y + radius; j++) {
-
-        //     }
-        // }
-    }
-
-    setVisited(x, y, bool) {
-        this.eleVisited[y][x] = bool;
-    }
-
-    clearEleVisited() {
-        for (let i = this.eleHeight - 1; i >= 0; i--) {
-            for (let j = this.eleWidth - 1; j >= 0; j--) {
-                this.eleVisited[i][j] = false;
-            }
-        }
-    }
-
     /*
-     * if [x, y] is out of bounds
+     * whether (x, y) is out of bounds
      */
     isOutOfBounds(x, y) {
         if (x < 0 || x >= this.eleWidth ||
@@ -126,14 +132,24 @@ class World {
     }
 
     /*
-     * if eles[sx][sy] can move to eles[nx][ny]
+     * whether (sx, sy, nx, ny) is accessible
      */
-    isMovable(sx, sy, nx, ny) {
+    isAccessible(sx, sy, nx, ny) {
         if (this.isOutOfBounds(nx, ny))
             return false;
         
-        if (this.eleVisited[sy][sx] ||
-            this.eleVisited[ny][nx])
+        if (!this.eleAccess[sy][sx] ||
+            !this.eleAccess[ny][nx])
+            return false;
+            
+        return true;
+    }
+
+    /*
+     * whether eles[sx][sy] can move to eles[nx][ny]
+     */
+    isMovable(sx, sy, nx, ny) {
+        if (!this.isAccessible(sx, sy, nx, ny))
             return false;
 
         if (this.eles[ny][nx].movable == false)
@@ -152,7 +168,7 @@ class World {
 
     /*
      * swap eles[x1][y1] and eles[x2][y2] without checking 
-     * and draw after swap
+     * and draw after swap finished
      */
     swap(x1, y1, x2, y2) {
         if (x1 == x2 && y1 == y2) {
@@ -165,20 +181,16 @@ class World {
         this.eles[y1][x1].setPos(x1, y1);
         this.eles[y2][x2].setPos(x2, y2);
 
+        this.setAccess(x1, y1, false);
+        this.setAccess(x2, y2, false);
+
         this.drawEle(x1, y1);
         this.drawEle(x2, y2);
-
-        this.setVisited(x1, y1, true);
-        this.setVisited(x2, y2, true);
     }
 
     // === reaction
     isCombustible(sx, sy, nx, ny) {
-        if (this.isOutOfBounds(nx, ny))
-            return false;
-        
-        if (this.eleVisited[sy][sx] ||
-            this.eleVisited[ny][nx])
+        if (!this.isAccessible(sx, sy, nx, ny))
             return false;
 
         if (this.eles[ny][nx].combustible)
@@ -188,11 +200,7 @@ class World {
     }
 
     isVolatile(sx, sy, nx, ny) {
-        if (this.isOutOfBounds(nx, ny))
-            return false;
-        
-        if (this.eleVisited[sy][sx] ||
-            this.eleVisited[ny][nx])
+        if (!this.isAccessible(sx, sy, nx, ny))
             return false;
 
         if (this.eles[ny][nx].volatile)
@@ -213,8 +221,7 @@ class World {
 }
 
 /*
- * Element is defined as eles in Class World. It's running under the pysical rules
- * in World.
+ * Element is defined as eles in World. It's running under the pysical rules in World.
  * Each class extends Element should implement functions below
  * - move()
  */
@@ -242,7 +249,9 @@ class Element {
     }
 
     /*
-     *  set color
+     * The rule of how to set color is that we take a random number, traverse the array 
+     * to find whether a number is less than the random number. If so, set the comparable
+     * color.
      */
     setColor() {
         let random = Math.floor(Math.random() * 

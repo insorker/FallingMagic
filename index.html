@@ -30,8 +30,8 @@
     <script type="text/javascript" src="/FallingMagic.js"></script>
     <script type="text/javascript">
         function run() {
-            let world = new World('canvas');
-            world.build();
+            let world = new World(document.getElementById('canvas'));
+            world.rebuild();
 
             const windowToCanvas = (canvas, x, y) => {
                 let rect = canvas.getBoundingClientRect()
