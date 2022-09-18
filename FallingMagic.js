@@ -1,276 +1,579 @@
-// canvas and context
-var cvs = document.getElementById("canvas");
-var ctx = cvs.getContext("2d");
+/* 
+ * World is defined as a bunch of pysical rules, which can be applied to instances of 
+ * Class Elements and its subclasses. Also it can draw the result on a canvas.
+ * 
+ * You can customize your own world by extending Class World. APIs to be implemented 
+ * are shown below (more details and rules can be found in the comments of functions).
+ */
+class World {
+    dirx = [0, 1, 0, -1];
+    diry = [1, 0, -1, 0];
 
-// take elements as a 2d array
-const eleSize = 6;
-const eleWidth = Math.ceil(cvs.width / eleSize);
-const eleHeight = Math.ceil(cvs.height / eleSize);
-var eles = new Array(eleWidth).fill(0).map(
-    () => new Array(eleHeight).fill(0));
+    constructor(canvasName) {
+        // canvas and context
+        this.cvs = document.getElementById(canvasName);
+        this.ctx = this.cvs.getContext("2d");
+        this.pen = undefined;
 
-class Element {
-    constructor(color, movable, velocity, density) {
-        this.color = color;
-        this.movable = movable;
-        this.velocity = velocity;
-        this.density = density;
+        // global arguments
+        this.eleSize = 6;
+        this.eleWidth = Math.ceil(this.cvs.width / this.eleSize);
+        this.eleHeight = Math.ceil(this.cvs.height / this.eleSize);
+
+        // take elements as a 2d array
+        this.eles = new Array(this.eleHeight).fill(0).map(
+            () => new Array(this.eleWidth).fill(0));
+        this.eleVisited = new Array(this.eleHeight).fill(false).map(
+            () => new Array(this.eleWidth).fill(false));
     }
 
-    // choose a random color to draw
-    static draw(x, y) {
-        let eleColor = ElementInstance[eles[x][y]].color;
-        let random = Math.floor(Math.random() * eleColor[eleColor.length - 1][1]);
-
-        for (let i = 0; i < eleColor.length; i++) {
-            if (random < eleColor[i][1]) {
-                ctx.fillStyle = eleColor[i][0];
-                ctx.fillRect(x * eleSize, y * eleSize, eleSize, eleSize);
-                break;
+    /*
+     * build the world
+     */
+    build(world) {
+        for (let i = 0; i < this.eleHeight; i++) {
+            for (let j = 0; j < this.eleWidth; j++) {
+                this.eles[i][j] = new Empty(world, j, i);
+                this.setVisited(j, i);
             }
         }
     }
 
-    // exchange two pixel's position
-    static exchange(x1, y1, x2, y2) {
-        // if (eles[x1][y1] == eles[x2][y2]) {
-        //     // same element
-        //     return false;
-        // }
-        if (x1 != x2 || y1 != y2) {
-            // different element && different position
-            [eles[x1][y1], eles[x2][y2]] = [eles[x2][y2], eles[x1][y1]];
-            return true;
+    /*
+     * set element at (x, y)
+     */
+    setEle(ele) {
+        let x = ele.x, y = ele.y;
+
+        if (!this.isOutOfBounds(x, y)) {
+            this.eles[y][x] = ele;
+            this.drawEle(x, y);
+
+            this.setVisited(x, y, true);
         }
-
-        // not reachable
-        return false;
     }
 
-    static exchangeAndDraw(x1, y1, x2, y2) {
-        Element.exchange(x1, y1, x2, y2);
-        // if exchange not happened, draw still to change color
-        Element.draw(x1, y1);
-        Element.draw(x2, y2);
-    }
-
-    static isMovable(x, y, nex, ney) {
-        // check boundary
-        if (nex < 0 || nex >= eleWidth ||
-            ney < 0 || ney >= eleHeight) { return false; }
-        
-        // check empty
-        if (eles[nex][ney] != 0) {
-            // whether next element can move
-            if (ElementInstance[eles[nex][ney]].movable == false) { return false; }
-            // compare density
-            if (ElementInstance[eles[x][y]].density >
-                ElementInstance[eles[nex][ney]].density) { return true; }
-
-            return false;
-        }
-        
-        return true;
-    }
-}
-
-class Empty extends Element {
-    constructor() {
-        super([['#ffffff', 1]], false, 0, 0);
-    }
-}
-
-class Liquid extends Element {
-    constructor(color, velociry, density) {
-        super(color, true, velociry, density);
-    }
-
-    move(x, y) {
-        let v = this.velocity;
-        let oldx = x, oldy = y;
-
-        if (Element.isMovable(oldx, oldy, x, y + 1)) {
-            // go down
-            while (v && Element.isMovable(oldx, oldy, x, y + 1)) {
-                y += 1;
-                v -= 1;
-            }
-        }
-        else {
-            // go left or right
-            let dir = Math.floor(Math.random() * 2);
-            if (dir == 0) { dir = -1; }
-
-            while (v && Element.isMovable(oldx, oldy, x + dir, y)) {
-                x += dir;
-                v -= 1;
-            }
-        }
-
-        Element.exchangeAndDraw(x, y, oldx, oldy);
-    }
-}
-
-class Solid extends Element {
-    constructor(color, movable, velociry, density) {
-        super(color, movable, velociry, density);
-    }
-
-    move(x, y) {
-        if (this.movable == false) {
-            Element.draw(x, y);
-            return;
-        }
-
-        let v = this.velocity;
-        let oldx = x, oldy = y;
-
-        if (Element.isMovable(oldx, oldy, x, y + 1)) {
-            // go down
-            while (v && Element.isMovable(oldx, oldy, x, y + 1)) {
-                y += 1;
-                v -= 1;
-            }
-        }
-        else {
-            // go down left or down right
-            let dir = Math.floor(Math.random() * 2);
-            if (dir == 0) { dir = -1; }
-
-            while (v && Element.isMovable(oldx, oldy, x + dir, y + 1)) {
-                x += dir;
-                y += 1;
-                v -= 1;
-            }
-        }
-
-        Element.exchangeAndDraw(x, y, oldx, oldy);
-    }
-}
-
-class Gas extends Element {
-    constructor(color, velociry, density) {
-        super(color, true, velociry, density);
-    }
-
-    move(x, y) {
-        let v = this.velocity;
-        let oldx = x, oldy = y;
-        let dir = Math.floor(Math.random() * 3) - 1;
-
-        if (Element.isMovable(oldx, oldy, x + dir, y - 1)) {
-            // go up left or up right
-            while (v && Element.isMovable(oldx, oldy, x + dir, y - 1)) {
-                x += dir;
-                y -= 1;
-                v -= 1;
-            }
-        }
-        else {
-            // just go horizontally
-            while (v && Element.isMovable(oldx, oldy, x + dir, y)) {
-                x += dir;
-                v -= 1;
-            }
-        }
-
-        Element.exchangeAndDraw(x, y, oldx, oldy);
-    }
-}
-
-class Water extends Liquid {
-    constructor() {
-        super([['#2486b9', 1]], 4, 1);
-    }
-}
-
-class Sand extends Solid {
-    constructor() {
-        super([['#f9c116', 1]], true, 1, 1.2);
-    }
-}
-
-class Stone extends Solid {
-    constructor() {
-        super([['#0f1423', 1]], false, 1, 10);
-    }
-}
-
-class Steam extends Gas {
-    constructor() {
-        super([['#8abcd1', 1], ['#eeeeee', 2]], 8, 0.5);
-    }
-}
-
-class Snow extends Solid {
-    constructor() {
-        super([['#baccd9', 1]], true, 3, 0.8);
-    }
-
-    move(x, y) {
-        let v = this.velocity;
-        let oldx = x, oldy = y;
-        let dir = Math.floor(Math.random() * 3) - 1;
-
-        if (Element.isMovable(oldx, oldy, x + dir, y + 1)) {
-            // go up left or up right
-            while (v && Element.isMovable(oldx, oldy, x + dir, y + 1)) {
-                x += dir;
-                y += 1;
-                v -= 1;
-            }
-        }
-        else {
-            // just go horizontally
-            while (v && Element.isMovable(oldx, oldy, x + dir, y)) {
-                x += dir;
-                v -= 1;
-            }
-        }
-
-        Element.exchangeAndDraw(x, y, oldx, oldy);
-    }
-}
-
-const ElementInstance = [
-    /* 0 */ new Empty(),
-    /* 1 */ new Water(),
-    /* 2 */ new Sand(),
-    /* 3 */ new Stone(),
-    /* 4 */ new Steam(),
-    /* 5 */ new Snow(),
-]
-
-function run() {
-    let frame = 1;
-
-    for (let i = 10; i <= 110; i++) {
-        eles[i][50] = 3;
-    }
-
-    var update = () => {
-        if (frame % 1 == 0) {
-            eles[10][10] = 1;
-            eles[100][10] = 2;
-            eles[50][10] = 4;
-            eles[60][10] = 5;
-        }
-        else if (frame == 60) {
-            frame = 0;
-        }
-
-        for (let j = eleHeight - 1; j >= 0; j--) {
-            for (let i = eleWidth - 1; i >= 0; i--) {
-                if (eles[i][j] != 0) {
-                    ElementInstance[eles[i][j]].move(i, j);
+    /*
+     * step per frame
+     */
+    step() {
+        // move
+        for (let i = this.eleHeight - 1; i >= 0; i--) {
+            for (let j = this.eleWidth - 1; j >= 0; j--) {
+                if (!(this.eles[i][j] instanceof Empty)) {
+                    // === do something
+                    this.eles[i][j].move();
+                    // do something ===
                 }
             }
         }
 
-        frame++;
-        requestAnimationFrame(update)
+        // draw all elements can be very slow
+        // this.drawCanvas();
+
+        // clear visit state
+        this.clearEleVisited();
     }
-    requestAnimationFrame(update)
+
+    /*
+     * draw canvas
+     */
+    drawCanvas() {
+        for (let i = this.eleHeight - 1; i >= 0; i--) {
+            for (let j = this.eleWidth - 1; j >= 0; j--) {
+                this.drawEle(j, i);
+            }
+        }
+    }
+
+    /*
+     * draw one element
+     */
+    drawEle(x, y) {
+        this.ctx.fillStyle = this.eles[y][x].getColor();
+        this.ctx.fillRect(x * this.eleSize, y * this.eleSize,
+            this.eleSize, this.eleSize);
+    }
+
+    clear(x, y, radius) {
+        // for (let i = x - radius; i <=  x + radius; i++) {
+        //     for (let j = y - radius; j <= y + radius; j++) {
+
+        //     }
+        // }
+    }
+
+    setVisited(x, y, bool) {
+        this.eleVisited[y][x] = bool;
+    }
+
+    clearEleVisited() {
+        for (let i = this.eleHeight - 1; i >= 0; i--) {
+            for (let j = this.eleWidth - 1; j >= 0; j--) {
+                this.eleVisited[i][j] = false;
+            }
+        }
+    }
+
+    /*
+     * if [x, y] is out of bounds
+     */
+    isOutOfBounds(x, y) {
+        if (x < 0 || x >= this.eleWidth ||
+            y < 0 || y >= this.eleHeight)
+                return true;
+        return false;
+    }
+
+    /*
+     * if eles[sx][sy] can move to eles[nx][ny]
+     */
+    isMovable(sx, sy, nx, ny) {
+        if (this.isOutOfBounds(nx, ny))
+            return false;
+        
+        if (this.eleVisited[sy][sx] ||
+            this.eleVisited[ny][nx])
+            return false;
+
+        if (this.eles[ny][nx].movable == false)
+            return false;
+
+        if (this.eles[sy][sx].type == 'Solid' &&
+            this.eles[ny][nx].type == 'Solid')
+            return false;
+
+        if (this.eles[sy][sx].density >
+            this.eles[ny][nx].density)
+            return true;
+        
+        return false;
+    }
+
+    /*
+     * swap eles[x1][y1] and eles[x2][y2] without checking 
+     * and draw after swap
+     */
+    swap(x1, y1, x2, y2) {
+        if (x1 == x2 && y1 == y2) {
+            this.drawEle(x1, y1);
+            return;
+        }
+
+        [this.eles[y1][x1], this.eles[y2][x2]] =
+            [this.eles[y2][x2], this.eles[y1][x1]];
+        this.eles[y1][x1].setPos(x1, y1);
+        this.eles[y2][x2].setPos(x2, y2);
+
+        this.drawEle(x1, y1);
+        this.drawEle(x2, y2);
+
+        this.setVisited(x1, y1, true);
+        this.setVisited(x2, y2, true);
+    }
+
+    // === reaction
+    isCombustible(sx, sy, nx, ny) {
+        if (this.isOutOfBounds(nx, ny))
+            return false;
+        
+        if (this.eleVisited[sy][sx] ||
+            this.eleVisited[ny][nx])
+            return false;
+
+        if (this.eles[ny][nx].combustible)
+            return true;
+        
+        return false;
+    }
+
+    isVolatile(sx, sy, nx, ny) {
+        if (this.isOutOfBounds(nx, ny))
+            return false;
+        
+        if (this.eleVisited[sy][sx] ||
+            this.eleVisited[ny][nx])
+            return false;
+
+        if (this.eles[ny][nx].volatile)
+            return true;
+        
+        return false;
+    }
+
+    // diffuse(sx, sy) {
+    //     for (let i = 0; i < 4; i++) {
+    //         let nx = sx + World.dirx[i], ny = sy + World.diry[i];
+    //         if (this.isMovable(x, y, nx, ny)) {
+
+    //         }
+    //     }
+    // }
+    // reaction ===
 }
 
-window.onload = run;
+/*
+ * Element is defined as eles in Class World. It's running under the pysical rules
+ * in World.
+ * Each class extends Element should implement functions below
+ * - move()
+ */
+class Element {
+    constructor(world, x, y, movable, velocity, density) {
+        this.world = world;
+        this.x = x;
+        this.y = y;
+        this.movable = movable;
+        this.velocity = velocity;
+        this.density = density;
+        this.type = undefined;
+        this.colorArray = [
+            ['#ffffff', 1],
+        ];
+
+        this.setColor();
+    }
+
+    /*
+     * set position
+     */
+    setPos(x, y) {
+        [this.x, this.y] = [x, y];
+    }
+
+    /*
+     *  set color
+     */
+    setColor() {
+        let random = Math.floor(Math.random() * 
+            this.colorArray[this.colorArray.length - 1][1]);
+        
+        for (let i = 0; i < this.colorArray.length; i++) {
+            if (random < this.colorArray[i][1]) {
+                return this.color = this.colorArray[i][0];
+            }
+        }
+
+        // error
+        console.assert(false, "setColor error");
+        return -1;
+    }
+
+    /*
+     * get color
+     */
+    getColor() {
+        return this.color;
+    }
+
+    /*
+     * move dist length straight with step length dx and dy
+     */
+    moveStraight(x, y, dist, dx, dy) {
+        let sx = x, sy = y;
+        while (dist && this.world.isMovable(sx, sy, x + dx, y + dy)) {
+            x += dx, y += dy;
+            dist--;
+        }
+        return [x, y, dist];
+    }
+
+    moveUp(x, y, dist) {
+        return this.moveStraight(x, y, dist, 0, -1);
+    }
+
+    moveDown(x, y, dist) {
+        return this.moveStraight(x, y, dist, 0, 1);
+    }
+
+    moveLeft(x, y, dist) {
+        return this.moveStraight(x, y, dist, -1, 0);
+    }
+
+    moveRight(x, y, dist) {
+        return this.moveStraight(x, y, dist, 1, 0);
+    }
+}
+
+// === level one
+class Empty extends Element {
+    constructor(world, x, y) {
+        super(world, x, y, true, 0, -1);
+
+        this.type = 'Empty';
+    }
+
+    move() { }
+}
+
+class Liquid extends Element {
+    constructor(world, x, y, velocity, density) {
+        super(world, x, y, true, velocity, density);
+
+        this.type = 'Liquid';
+        this.volatile = true;
+    }
+
+    move() {
+        let v = this.velocity;
+        let x = this.x, y = this.y;
+
+        [x, y, v] = this.moveDown(x, y, v);
+        if (v) {
+            let leftOrRight = Math.floor(Math.random() * 2);
+            if (leftOrRight)
+                [x, y, v] = this.moveLeft(x, y, v);
+            else
+                [x, y, v] = this.moveRight(x, y, v);
+        }
+
+        this.world.swap(this.x, this.y, x, y);
+    }
+}
+
+class Solid extends Element {
+    constructor(world, x, y, movable, velocity, density) {
+        super(world, x, y, movable, velocity, density);
+
+        this.type = 'Solid';
+        this.isFreeFalling = true;
+    }
+
+    // +++ inertialResistance
+    // constructor(world, x, y, movable, velocity, density, inertialResistance) {
+    //     super(world, x, y, movable, velocity, density);
+
+    //     this.inertialResistance = inertialResistance;
+    // }
+
+    // moveDown(x, y, dist) {
+    //     let sx = x, sy = y;
+    //     while (dist && this.world.isMovable(sx, sy, x, y + 1)) {
+    //         y += 1;
+    //         dist--;
+    //     }
+    //     return [x, y, dist];
+    // }
+    // inertialResistance +++
+
+    move() {
+        if (this.movable == false) return;
+
+        let v = this.velocity;
+        let x = this.x, y = this.y;
+        if (this.world.isMovable(x, y, x, y + 1))
+            this.isFreeFalling = true;
+        else {
+            if (!this.world.isMovable(x, y, x - 1, y + 1) &&
+                !this.world.isMovable(x, y, x + 1, y + 1)) {
+                    this.isFreeFalling = false;
+                }
+        }
+        if (this.isFreeFalling == false) return;
+
+        [x, y, v] = this.moveDown(x, y, v);
+        if (v) {
+            let leftOrRight = Math.floor(Math.random() * 2);
+            if (leftOrRight) {
+                if (this.world.isMovable(x, y, x - 1, y + 1)) {
+                    [x, y, ] = this.moveLeft(x, y, 1);
+                    [x, y, v] = this.moveDown(x, y, v);
+                }
+            }
+            else {
+                if (this.world.isMovable(x, y, x + 1, y + 1)) {
+                    [x, y, ] = this.moveRight(x, y, 1);
+                    [x, y, v] = this.moveDown(x, y, v);
+                }
+            }
+        }
+
+        this.world.swap(this.x, this.y, x, y);
+    }
+}
+
+class Gas extends Element {
+    constructor(world, x, y, velocity, density) {
+        super(world, x, y, true, velocity, density);
+
+        this.dispear = false;
+        this.type = 'Gas';
+    }
+
+    getColor() {
+        return this.setColor();
+    }
+
+    move() {
+        let v = this.velocity;
+        let x = this.x, y = this.y;
+
+        [x, y, v] = this.moveUp(x, y, v);
+        if (v == this.velocity) {
+            if (this.dispear) {
+                this.world.setEle(new Empty(this.world, this.x, this.y));
+                return;
+            }
+            else {
+                let leftOrRight = Math.floor(Math.random() * 2);
+                if (leftOrRight)
+                    [x, y, v] = this.moveLeft(x, y, v);
+                else
+                    [x, y, v] = this.moveRight(x, y, v);
+            }
+        }
+
+        this.world.swap(this.x, this.y, x, y);
+    }
+}
+
+class Magic extends Element {
+    constructor(world, x, y, movable) {
+        super(world, x, y, movable, 0, 0);
+
+        this.type = 'Magic';
+    }
+}
+// level one ===
+
+// === level two
+class Water extends Liquid {
+    constructor(world, x, y) {
+        super(world, x, y, 4, 1.0);
+
+        this.colorArray = [
+            ['#2486b9', 1]
+        ];
+        this.setColor();
+    }
+}
+
+class Sand extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, true, 1, 1.2);
+
+        this.colorArray = [
+            ['#f9c116', 2],
+            ['#d6a01d', 3]
+        ];
+        this.setColor();
+    }
+}
+
+class Stone extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, false, 1, 10);
+
+        this.colorArray = [
+            ['#0f1423', 1]
+        ];
+        this.setColor();
+
+        this.isFreeFalling = false;
+    }
+}
+
+class Steam extends Gas {
+    constructor(world, x, y) {
+        super(world, x, y, 2, 0.5);
+
+        this.colorArray = [
+            ['#cdd1d3', 1]
+        ];
+        this.setColor();
+    }
+}
+
+class Snow extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, true, 2, 0.8);
+
+        this.colorArray = [
+            ['#baccd9', 1]
+        ];
+        this.setColor();
+    }
+}
+
+class Fire extends Magic {
+    constructor(world, x, y) {
+        super(world, x, y, true);
+
+        this.colorArray = [
+            ['#eccb83', 1],
+            ['#e07e38', 2]
+        ];
+        this.setColor();
+
+        this.velocity = 2;
+        this.live = 120;
+        this.duration = 6;
+    }
+
+    getColor() {
+        return this.setColor();
+    }
+
+    die() {
+        if (this.live == 0) {
+            this.world.setEle(new Empty(this.world, this.x, this.y));
+            return true;
+        }
+
+        this.live--;
+        return false;
+    }
+
+    setFlame() {
+        // let v = this.velocity;
+        // let x = this.x, y = this.y;
+        // [x, y, v] = this.moveUp(x, y, v);
+
+        // let flame = new Fire(this.world, x, y);
+        // flame.live = 0;
+
+        // this.world.setEle(flame);
+    }
+
+    move() {
+        if (this.die()) return;
+        
+        let x = this.x, y = this.y;
+
+        if (this.live % this.duration == 0) {
+            for (let i = 0; i < 4; i++) {
+                let nx = x + this.world.dirx[i], ny = y + this.world.diry[i];
+                // e.g. wood
+                if (this.world.isCombustible(x, y, nx, ny)) {
+                    this.world.setEle(new Fire(this.world, nx, ny));
+                    return;
+                }
+                // e.g. water
+                else if (this.world.isVolatile(x, y, nx, ny)) {
+                    this.world.setEle(new Steam(this.world, nx, ny));
+                    this.live = 0;
+                    return;
+                }
+            }
+        }
+        
+        this.setFlame();
+        this.world.drawEle(this.x, this.y);
+    }
+}
+
+class Wood extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, false, 1, 10);
+
+        this.colorArray = [
+            ['#806332', 1],
+            ['#553b18', 2],
+        ];
+        this.setColor();
+
+        this.isFreeFalling = false;
+        this.combustible = true;
+    }
+}
+// level two ===
