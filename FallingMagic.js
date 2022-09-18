@@ -189,7 +189,7 @@ class World {
     }
 
     // === reaction
-    isCombustible(sx, sy, nx, ny) {
+    combustible(sx, sy, nx, ny) {
         if (!this.isAccessible(sx, sy, nx, ny))
             return false;
 
@@ -199,11 +199,21 @@ class World {
         return false;
     }
 
-    isVolatile(sx, sy, nx, ny) {
+    volatile(sx, sy, nx, ny) {
         if (!this.isAccessible(sx, sy, nx, ny))
             return false;
 
         if (this.eles[ny][nx].volatile)
+            return true;
+        
+        return false;
+    }
+
+    liquefiable(sx, sy, nx, ny) {
+        if (!this.isAccessible(sx, sy, nx, ny))
+            return false;
+        
+        if (this.eles[ny][nx].liquefiable)
             return true;
         
         return false;
@@ -320,7 +330,6 @@ class Liquid extends Element {
         super(world, x, y, true, velocity, density);
 
         this.type = 'Liquid';
-        this.volatile = true;
     }
 
     move() {
@@ -454,6 +463,21 @@ class Water extends Liquid {
             ['#2486b9', 1]
         ];
         this.setColor();
+
+        this.volatile = true;
+    }
+}
+
+class Oil extends Liquid {
+    constructor(world, x, y) {
+        super(world, x, y, 4, 1.0);
+
+        this.colorArray = [
+            ['#7c5136', 1]
+        ];
+        this.setColor();
+
+        this.combustible = true;
     }
 }
 
@@ -501,6 +525,23 @@ class Snow extends Solid {
             ['#baccd9', 1]
         ];
         this.setColor();
+
+        this.liquefiable = true;
+    }
+}
+
+class Wood extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, false, 1, 10);
+
+        this.colorArray = [
+            ['#806332', 1],
+            ['#553b18', 2],
+        ];
+        this.setColor();
+
+        this.isFreeFalling = false;
+        this.combustible = true;
     }
 }
 
@@ -553,13 +594,19 @@ class Fire extends Magic {
             for (let i = 0; i < 4; i++) {
                 let nx = x + this.world.dirx[i], ny = y + this.world.diry[i];
                 // e.g. wood
-                if (this.world.isCombustible(x, y, nx, ny)) {
+                if (this.world.combustible(x, y, nx, ny)) {
                     this.world.setEle(new Fire(this.world, nx, ny));
                     return;
                 }
                 // e.g. water
-                else if (this.world.isVolatile(x, y, nx, ny)) {
+                else if (this.world.volatile(x, y, nx, ny)) {
                     this.world.setEle(new Steam(this.world, nx, ny));
+                    this.live = 0;
+                    return;
+                }
+                // e.g. snow
+                else if (this.world.liquefiable(x, y, nx, ny)) {
+                    this.world.setEle(new Water(this.world, nx, ny));
                     this.live = 0;
                     return;
                 }
@@ -568,21 +615,6 @@ class Fire extends Magic {
         
         this.setFlame();
         this.world.drawEle(this.x, this.y);
-    }
-}
-
-class Wood extends Solid {
-    constructor(world, x, y) {
-        super(world, x, y, false, 1, 10);
-
-        this.colorArray = [
-            ['#806332', 1],
-            ['#553b18', 2],
-        ];
-        this.setColor();
-
-        this.isFreeFalling = false;
-        this.combustible = true;
     }
 }
 // level two ===

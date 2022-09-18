@@ -18,16 +18,18 @@
 
     </canvas>
     <button type="button" id="pensize">笔刷大小-0</button>
+    <button type="button" id="rebuild">清空</button>
     <button type="button" id="ele-Empty">空</button>
     <button type="button" id="ele-Water">水</button>
+    <button type="button" id="ele-Oil">油</button>
     <button type="button" id="ele-Sand">沙子</button>
     <button type="button" id="ele-Stone">石头</button>
     <button type="button" id="ele-Snow">雪</button>
     <button type="button" id="ele-Steam">水蒸气</button>
-    <button type="button" id="ele-Fire">火</button>
     <button type="button" id="ele-Wood">木头</button>
+    <button type="button" id="ele-Fire">火</button>
 
-    <script type="text/javascript" src="/FallingMagic/FallingMagic.js"></script>
+    <script type="text/javascript" src="/FallingMagic.js"></script>
     <script type="text/javascript">
         function run() {
             let world = new World(document.getElementById('canvas'));
@@ -52,16 +54,22 @@
                     btnpensize.innerHTML = '笔刷大小-' + pensize;
                 }
 
+                let btnRebuild = document.getElementById("rebuild");
+                btnpensize.onclick = function() { world.rebuild(); }
+
                 let btnEmpty = document.getElementById("ele-Empty");
                 let btnWater = document.getElementById("ele-Water");
+                let btnOil = document.getElementById("ele-Oil");
                 let btnSand = document.getElementById("ele-Sand");
                 let btnStone = document.getElementById("ele-Stone");
                 let btnSnow = document.getElementById("ele-Snow");
                 let btnSteam = document.getElementById("ele-Steam");
-                let btnFire = document.getElementById("ele-Fire");
                 let btnWood = document.getElementById("ele-Wood");
+                let btnFire = document.getElementById("ele-Fire");
+                
                 btnEmpty.onclick = function () { world.pen = Empty; };
                 btnWater.onclick = function () { world.pen = Water; };
+                btnOil.onclick = function () { world.pen = Oil; };
                 btnSand.onclick = function () { world.pen = Sand; };
                 btnStone.onclick = function () { world.pen = Stone; };
                 btnSnow.onclick = function () { world.pen = Snow; };
