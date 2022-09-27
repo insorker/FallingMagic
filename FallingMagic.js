@@ -17,7 +17,7 @@ class World {
         this.pen = undefined;
 
         // global arguments
-        this.eleSize = 6;
+        this.eleSize = 5;
         this.eleWidth = Math.ceil(this.cvs.width / this.eleSize);
         this.eleHeight = Math.ceil(this.cvs.height / this.eleSize);
 
@@ -47,6 +47,8 @@ class World {
                 this.setAccess(j, i, true);
             }
         }
+
+        this.ctx.clearRect(0, 0, this.cvs.width, this.cvs.height);
     }
 
     /*
@@ -137,7 +139,7 @@ class World {
     isAccessible(sx, sy, nx, ny) {
         if (this.isOutOfBounds(nx, ny))
             return false;
-        
+
         if (!this.eleAccess[sy][sx] ||
             !this.eleAccess[ny][nx])
             return false;
@@ -148,20 +150,24 @@ class World {
     /*
      * whether eles[sx][sy] can move to eles[nx][ny]
      */
-    isMovable(sx, sy, nx, ny) {
+    isMovable(sx, sy, nx, ny, horizontal=false) {
         if (!this.isAccessible(sx, sy, nx, ny))
             return false;
 
         if (this.eles[ny][nx].movable == false)
             return false;
 
-        if (this.eles[sy][sx].type == 'Solid' &&
-            this.eles[ny][nx].type == 'Solid')
+        if (this.eles[ny][nx].type == 'Solid')
             return false;
-
-        if (this.eles[sy][sx].density >
-            this.eles[ny][nx].density)
+        
+        if (horizontal) {
             return true;
+        }
+        else {
+            if (this.eles[sy][sx].density >
+                this.eles[ny][nx].density)
+                return true;
+        }
         
         return false;
     }
@@ -288,9 +294,9 @@ class Element {
     /*
      * move dist length straight with step length dx and dy
      */
-    moveStraight(x, y, dist, dx, dy) {
+    moveStraight(x, y, dist, dx, dy, horizontal) {
         let sx = x, sy = y;
-        while (dist && this.world.isMovable(sx, sy, x + dx, y + dy)) {
+        while (dist && this.world.isMovable(sx, sy, x + dx, y + dy, horizontal)) {
             x += dx, y += dy;
             dist--;
         }
@@ -298,19 +304,19 @@ class Element {
     }
 
     moveUp(x, y, dist) {
-        return this.moveStraight(x, y, dist, 0, -1);
+        return this.moveStraight(x, y, dist, 0, -1, false);
     }
 
     moveDown(x, y, dist) {
-        return this.moveStraight(x, y, dist, 0, 1);
+        return this.moveStraight(x, y, dist, 0, 1, false);
     }
 
     moveLeft(x, y, dist) {
-        return this.moveStraight(x, y, dist, -1, 0);
+        return this.moveStraight(x, y, dist, -1, 0, true);
     }
 
     moveRight(x, y, dist) {
-        return this.moveStraight(x, y, dist, 1, 0);
+        return this.moveStraight(x, y, dist, 1, 0, true);
     }
 }
 
@@ -350,59 +356,57 @@ class Liquid extends Element {
 }
 
 class Solid extends Element {
-    constructor(world, x, y, movable, velocity, density) {
+    constructor(world, x, y, movable, velocity, density, inertialResistance) {
         super(world, x, y, movable, velocity, density);
 
         this.type = 'Solid';
         this.isFreeFalling = true;
+        this.inertialResistance = inertialResistance;
     }
 
-    // +++ inertialResistance
-    // constructor(world, x, y, movable, velocity, density, inertialResistance) {
-    //     super(world, x, y, movable, velocity, density);
+    moveStraight(x, y, dist, dx, dy, horizontal) {
+        let sx = x, sy = y;
+        while (dist && this.world.isMovable(sx, sy, x + dx, y + dy, horizontal)) {
+            if (Math.random() < this.inertialResistance) {
+                if (!this.world.isOutOfBounds(x + 1, y) &&
+                    this.world.eles[y][x + 1].type == 'Solid') {
+                    this.world.eles[y][x + 1].isFreeFalling = true;
+                }
+                if (!this.world.isOutOfBounds(x - 1, y) &&
+                    this.world.eles[y][x - 1].type == 'Solid') {
+                    this.world.eles[y][x - 1].isFreeFalling = true;
+                }
+            }
 
-    //     this.inertialResistance = inertialResistance;
-    // }
-
-    // moveDown(x, y, dist) {
-    //     let sx = x, sy = y;
-    //     while (dist && this.world.isMovable(sx, sy, x, y + 1)) {
-    //         y += 1;
-    //         dist--;
-    //     }
-    //     return [x, y, dist];
-    // }
-    // inertialResistance +++
+            x += dx, y += dy;
+            dist--;
+        }
+        return [x, y, dist];
+    }
 
     move() {
         if (this.movable == false) return;
 
         let v = this.velocity;
         let x = this.x, y = this.y;
+
         if (this.world.isMovable(x, y, x, y + 1))
             this.isFreeFalling = true;
-        else {
-            if (!this.world.isMovable(x, y, x - 1, y + 1) &&
-                !this.world.isMovable(x, y, x + 1, y + 1)) {
-                    this.isFreeFalling = false;
-                }
-        }
-        if (this.isFreeFalling == false) return;
+        else if (this.isFreeFalling == false)
+            return;
 
         [x, y, v] = this.moveDown(x, y, v);
         if (v) {
             let leftOrRight = Math.floor(Math.random() * 2);
             if (leftOrRight) {
-                if (this.world.isMovable(x, y, x - 1, y + 1)) {
-                    [x, y, ] = this.moveLeft(x, y, 1);
-                    [x, y, v] = this.moveDown(x, y, v);
-                }
+                [x, y, v] = this.moveLeft(x, y, v);
             }
             else {
-                if (this.world.isMovable(x, y, x + 1, y + 1)) {
-                    [x, y, ] = this.moveRight(x, y, 1);
-                    [x, y, v] = this.moveDown(x, y, v);
-                }
+                [x, y, v] = this.moveRight(x, y, v);
+            }
+            
+            if (!this.world.isMovable(x, y, x, y + 1)) {
+                this.isFreeFalling = false;
             }
         }
 
@@ -470,7 +474,7 @@ class Water extends Liquid {
 
 class Oil extends Liquid {
     constructor(world, x, y) {
-        super(world, x, y, 4, 1.0);
+        super(world, x, y, 4, 0.9);
 
         this.colorArray = [
             ['#7c5136', 1]
@@ -483,7 +487,7 @@ class Oil extends Liquid {
 
 class Sand extends Solid {
     constructor(world, x, y) {
-        super(world, x, y, true, 1, 1.2);
+        super(world, x, y, true, 4, 1.2, 0.5);
 
         this.colorArray = [
             ['#f9c116', 2],
@@ -495,7 +499,7 @@ class Sand extends Solid {
 
 class Stone extends Solid {
     constructor(world, x, y) {
-        super(world, x, y, false, 1, 10);
+        super(world, x, y, false, 4, 10, 0.5);
 
         this.colorArray = [
             ['#0f1423', 1]
@@ -506,20 +510,9 @@ class Stone extends Solid {
     }
 }
 
-class Steam extends Gas {
-    constructor(world, x, y) {
-        super(world, x, y, 2, 0.5);
-
-        this.colorArray = [
-            ['#cdd1d3', 1]
-        ];
-        this.setColor();
-    }
-}
-
 class Snow extends Solid {
     constructor(world, x, y) {
-        super(world, x, y, true, 2, 0.8);
+        super(world, x, y, true, 4, 0.8, 0.5);
 
         this.colorArray = [
             ['#baccd9', 1]
@@ -532,7 +525,7 @@ class Snow extends Solid {
 
 class Wood extends Solid {
     constructor(world, x, y) {
-        super(world, x, y, false, 1, 10);
+        super(world, x, y, false, 4, 10, 0.5);
 
         this.colorArray = [
             ['#806332', 1],
@@ -542,6 +535,18 @@ class Wood extends Solid {
 
         this.isFreeFalling = false;
         this.combustible = true;
+    }
+}
+
+
+class Steam extends Gas {
+    constructor(world, x, y) {
+        super(world, x, y, 4, 0.5);
+
+        this.colorArray = [
+            ['#cdd1d3', 1]
+        ];
+        this.setColor();
     }
 }
 
