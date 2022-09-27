@@ -109,7 +109,7 @@ class World {
     clearEleAccess() {
         for (let i = 0; i < this.eleHeight; i++) {
             for (let j = 0; j < this.eleWidth; j++) {
-                this.eleAccess[i][j] = true;
+                this.setAccess(j, i, true);
             }
         }
     }
@@ -224,15 +224,6 @@ class World {
         
         return false;
     }
-
-    // diffuse(sx, sy) {
-    //     for (let i = 0; i < 4; i++) {
-    //         let nx = sx + World.dirx[i], ny = sy + World.diry[i];
-    //         if (this.isMovable(x, y, nx, ny)) {
-
-    //         }
-    //     }
-    // }
     // reaction ===
 }
 
@@ -364,9 +355,9 @@ class Solid extends Element {
         this.inertialResistance = inertialResistance;
     }
 
-    moveStraight(x, y, dist, dx, dy, horizontal) {
+    moveDown(x, y, dist) {
         let sx = x, sy = y;
-        while (dist && this.world.isMovable(sx, sy, x + dx, y + dy, horizontal)) {
+        while (dist && this.world.isMovable(sx, sy, x, y + 1, false)) {
             if (Math.random() < this.inertialResistance) {
                 if (!this.world.isOutOfBounds(x + 1, y) &&
                     this.world.eles[y][x + 1].type == 'Solid') {
@@ -378,7 +369,7 @@ class Solid extends Element {
                 }
             }
 
-            x += dx, y += dy;
+            y += 1;
             dist--;
         }
         return [x, y, dist];
@@ -512,7 +503,7 @@ class Stone extends Solid {
 
 class Snow extends Solid {
     constructor(world, x, y) {
-        super(world, x, y, true, 4, 0.8, 0.5);
+        super(world, x, y, true, 4, 0.8, 0.7);
 
         this.colorArray = [
             ['#baccd9', 1]
@@ -538,6 +529,20 @@ class Wood extends Solid {
     }
 }
 
+class Marble extends Solid {
+    constructor(world, x, y) {
+        super(world, x, y, false, 4, 10, 0.5);
+
+        this.colorArray = [
+            ['#474747', 1],
+            ['#565555', 2],
+            ['#777777', 3],
+        ];
+        this.setColor();
+
+        this.isFreeFalling = false;
+    }
+}
 
 class Steam extends Gas {
     constructor(world, x, y) {

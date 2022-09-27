@@ -25,12 +25,13 @@
     <button type="button" id="ele-Sand">沙子</button>
     <button type="button" id="ele-Stone">石头</button>
     <button type="button" id="ele-Snow">雪</button>
-    <button type="button" id="ele-Steam">水蒸气</button>
     <button type="button" id="ele-Wood">木头</button>
+    <button type="button" id="ele-Marble">大理石</button>
+    <button type="button" id="ele-Steam">水蒸气</button>
     <button type="button" id="ele-Fire">火</button>
 
-    <!-- <script type="text/javascript" src="/FallingMagic/FallingMagic.js"></script> -->
-    <script type="text/javascript" src="./FallingMagic.js"></script>
+    <script type="text/javascript" src="/FallingMagic/FallingMagic.js"></script>
+    <!-- <script type="text/javascript" src="./FallingMagic.js"></script> -->
     <script type="text/javascript">
         function run() {
             let world = new World(document.getElementById('canvas'));
@@ -66,6 +67,7 @@
                 let btnSnow = document.getElementById("ele-Snow");
                 let btnSteam = document.getElementById("ele-Steam");
                 let btnWood = document.getElementById("ele-Wood");
+                let btnMarble = document.getElementById("ele-Marble");
                 let btnFire = document.getElementById("ele-Fire");
                 
                 btnEmpty.onclick = function () { world.pen = Empty; };
@@ -77,6 +79,7 @@
                 btnSteam.onclick = function () { world.pen = Steam; };
                 btnFire.onclick = function () { world.pen = Fire; };
                 btnWood.onclick = function () { world.pen = Wood; };
+                btnMarble.onclick = function () { world.pen = Marble; };
             })()
 
             let penEnable = false;
@@ -112,7 +115,7 @@
             function update () {
                 world.step();
 
-                if (frame % 2 == 0) {
+                if (frame % 3 == 0) {
                     if (penEnable) {
                         brush();
                     }
